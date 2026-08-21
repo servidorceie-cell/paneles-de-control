@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard · Control de Planillas y Facturas</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+/* ── VARIABLES DE TEMA ── */
+:root{
+  --bg:#0F172A;--surface:#1E293B;--surface2:#152032;--header:#111827;
+  --border:#334155;--text:#F8FAFC;--muted:#CBD5E1;
+  --green:#22C55E;--yellow:#F59E0B;--red:#EF4444;--blue:#3B82F6;--indigo:#6366F1;
+  --shadow:0 4px 24px rgba(0,0,0,.45);--radius:12px;--trans:all .25s ease;
+}
+[data-theme="light"]{
+  --bg:#F1F5F9;--surface:#FFFFFF;--surface2:#F8FAFC;--header:#1E293B;
+  --border:#E2E8F0;--text:#0F172A;--muted:#475569;--shadow:0 4px 20px rgba(0,0,0,.08);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;transition:background .3s,color .3s}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:var(--surface)}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+/* ── ANIMS ── */
+@keyframes fadeInUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+@keyframes slideRight{from{transform:translateX(110%)}to{transform:translateX(0)}}
+.a1{animation:fadeInUp .35s ease both}
+.a2{animation:fadeInUp .45s ease both}
+.a3{animation:fadeInUp .55s ease both}
+.a4{animation:fadeInUp .65s ease both}
+.a5{animation:fadeInUp .75s ease both}
+/* ── OVERLAY & SIDEBARS ── */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:98;display:none;backdrop-filter:blur(3px)}
+.overlay.on{display:block}
+.sb{position:fixed;top:0;right:0;height:100vh;width:360px;background:var(--surface);border-left:1px solid var(--border);z-index:99;transform:translateX(110%);transition:transform .3s ease;overflow-y:auto;box-shadow:var(--shadow)}
+.sb.on{transform:translateX(0)}
+.sb-hdr{padding:18px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--surface);z-index:1}
+.sb-hdr h3{font-size:.95rem;font-weight:700}
+.sb-x{background:none;border:none;color:var(--muted);font-size:1.1rem;cursor:pointer;padding:4px 8px;border-radius:6px;transition:var(--trans)}
+.sb-x:hover{background:var(--border);color:var(--text)}
+.sb-body{padding:20px 22px}
+/* ── HEADER ── */
+.hdr{background:var(--header);padding:13px 24px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:50}
+.hdr h1{font-size:1.05rem;font-weight:700;letter-spacing:.3px}
+.hdr p{font-size:.7rem;color:var(--muted);margin-top:2px}
+.hdr-r{display:flex;align-items:center;gap:8px}
+.bi{background:var(--surface);border:1px solid var(--border);color:var(--text);padding:7px 11px;border-radius:8px;cursor:pointer;transition:var(--trans);font-size:.83rem;display:flex;align-items:center;gap:5px;position:relative;white-space:nowrap}
+.bi:hover{background:var(--border);transform:translateY(-1px)}
+.badge{position:absolute;top:-5px;right:-5px;background:var(--red);color:#fff;font-size:.58rem;font-weight:800;width:16px;height:16px;border-radius:50%;display:none;align-items:center;justify-content:center}
+.badge.on{display:flex}
+/* ── YEAR BAR + TABS ── */
+.ybar{background:var(--header);padding:6px 24px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border)}
+.ylbl{color:var(--muted);font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.9px}
+.ysel{background:var(--blue);color:#fff;border:none;border-radius:7px;padding:4px 12px;font-size:.8rem;font-weight:700;cursor:pointer;outline:none}
+.tabs{background:var(--surface);border-bottom:1px solid var(--border);display:flex;overflow-x:auto;padding:0 16px}
+.tab{padding:10px 15px;cursor:pointer;font-size:.77rem;font-weight:600;color:var(--muted);white-space:nowrap;border-bottom:3px solid transparent;transition:var(--trans)}
+.tab:hover{color:var(--blue)}
+.tab.on{color:var(--blue);border-bottom-color:var(--blue)}
+/* ── LAYOUT ── */
+.content{padding:18px 22px;max-width:1800px;margin:0 auto}
+/* ── KPI GRID ── */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:11px;margin-bottom:16px}
+.kpi{background:var(--surface);border-radius:var(--radius);padding:15px 16px;border:1px solid var(--border);transition:var(--trans);cursor:default}
+.kpi:hover{transform:translateY(-2px);box-shadow:var(--shadow)}
+.kpi-ic{font-size:1.3rem;margin-bottom:6px}
+.kpi-lb{font-size:.65rem;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:3px}
+.kpi-v{font-size:1.75rem;font-weight:800;line-height:1}
+.kpi-s{font-size:.65rem;color:var(--muted);margin-top:3px}
+.cbl .kpi-v{color:var(--blue)} .cgr .kpi-v{color:var(--green)} .cre .kpi-v{color:var(--red)}
+.cye .kpi-v{color:var(--yellow)} .cin .kpi-v{color:var(--indigo)} .cor .kpi-v{color:#F97316} .cte .kpi-v{color:#14B8A6}
+/* ── MID ROW ── */
+.mid{display:grid;grid-template-columns:230px 1fr 175px;gap:13px;margin-bottom:16px}
+@media(max-width:1100px){.mid{grid-template-columns:1fr 1fr}}
+@media(max-width:700px){.mid{grid-template-columns:1fr}}
+.card{background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);padding:16px 18px;transition:var(--trans)}
+.card:hover{box-shadow:var(--shadow)}
+.ct{font-size:.75rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:12px;display:flex;align-items:center;gap:6px}
+/* ── GAUGE ── */
+.gwrap{display:flex;flex-direction:column;align-items:center;gap:4px}
+.glbls{display:flex;justify-content:space-between;width:100%;font-size:.62rem;color:var(--muted);padding:0 6px}
+/* ── RISK ── */
+.risk-g{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;height:calc(100% - 32px)}
+.rc{border-radius:10px;padding:12px 8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;border:1px solid;text-align:center}
+.rc-r{background:rgba(239,68,68,.1);border-color:rgba(239,68,68,.3)}
+.rc-y{background:rgba(245,158,11,.1);border-color:rgba(245,158,11,.3)}
+.rc-g{background:rgba(34,197,94,.1);border-color:rgba(34,197,94,.3)}
+.rc-ic{font-size:1.4rem}
+.rc-n{font-size:1.8rem;font-weight:800}
+.rc-r .rc-n{color:var(--red)} .rc-y .rc-n{color:var(--yellow)} .rc-g .rc-n{color:var(--green)}
+.rc-lb{font-size:.68rem;font-weight:700;color:var(--muted)}
+.rc-rg{font-size:.6rem;color:var(--muted);opacity:.7}
+/* ── TREND ── */
+.trnd{display:flex;flex-direction:column;justify-content:center;align-items:center;gap:7px;text-align:center;height:calc(100% - 32px)}
+.tdelta{font-size:2rem;font-weight:900}
+.tup{color:var(--green)} .tdn{color:var(--red)} .tfl{color:var(--muted)}
+.tsub{font-size:.72rem;color:var(--muted);line-height:1.5}
+/* ── TOOLBAR ── */
+.tb{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:13px;align-items:center}
+.si{flex:1;min-width:160px;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:8px 14px;border-radius:8px;font-size:.79rem;outline:none;transition:var(--trans)}
+.si:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(59,130,246,.15)}
+.si::placeholder{color:var(--muted)}
+.fg{display:flex;gap:5px;flex-wrap:wrap}
+.bf{background:var(--surface);border:1px solid var(--border);color:var(--muted);padding:6px 12px;border-radius:7px;cursor:pointer;font-size:.74rem;font-weight:600;transition:var(--trans)}
+.bf:hover,.bf.on{background:var(--blue);border-color:var(--blue);color:#fff}
+.eg{display:flex;gap:5px;margin-left:auto}
+.be{background:var(--surface);border:1px solid var(--border);color:var(--muted);padding:6px 10px;border-radius:7px;cursor:pointer;font-size:.72rem;font-weight:600;transition:var(--trans);display:flex;align-items:center;gap:4px}
+.be:hover{background:var(--indigo);border-color:var(--indigo);color:#fff}
+/* ── CHART CARD ── */
+.chart-card{margin-bottom:16px}
+.legend{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:10px}
+.li{display:flex;align-items:center;gap:5px;font-size:.72rem;color:var(--muted)}
+.ld{width:12px;height:12px;border-radius:2px}
+.ll{width:22px;height:2px;border-radius:1px}
+.cscroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.cscroll::-webkit-scrollbar{height:4px}
+.cscroll::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.cinner{height:400px;min-width:2100px}
+/* ── HEATMAP ── */
+.hmc{margin-bottom:16px}
+.hm-t{display:flex;align-items:center;margin-bottom:0}
+.hmbtn{background:none;border:1px solid var(--border);color:var(--muted);padding:5px 13px;border-radius:7px;cursor:pointer;font-size:.75rem;font-weight:600;transition:var(--trans);margin-left:auto}
+.hmbtn:hover{border-color:var(--blue);color:var(--blue)}
+.hm-g{display:none;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:9px;margin-top:13px}
+.hm-g.on{display:grid}
+.hc{border-radius:10px;padding:11px 12px;cursor:pointer;transition:var(--trans);border:1px solid transparent;min-height:75px;display:flex;flex-direction:column;justify-content:space-between}
+.hc:hover{transform:translateY(-2px);box-shadow:var(--shadow)}
+.hc-g{background:rgba(34,197,94,.13);border-color:rgba(34,197,94,.3)}
+.hc-y{background:rgba(245,158,11,.13);border-color:rgba(245,158,11,.3)}
+.hc-r{background:rgba(239,68,68,.13);border-color:rgba(239,68,68,.3)}
+.hn{font-size:.7rem;font-weight:600;line-height:1.3;color:var(--text)}
+.hp{font-size:1.25rem;font-weight:800}
+.hc-g .hp{color:var(--green)} .hc-y .hp{color:var(--yellow)} .hc-r .hp{color:var(--red)}
+/* ── RANKINGS ── */
+.rg{display:grid;grid-template-columns:1fr 1fr;gap:13px;margin-bottom:16px}
+@media(max-width:600px){.rg{grid-template-columns:1fr}}
+.rl{list-style:none;margin-top:9px;display:flex;flex-direction:column;gap:5px}
+.ri{display:flex;align-items:center;gap:9px;padding:8px 10px;background:var(--surface2);border-radius:8px;font-size:.76rem;cursor:pointer;transition:var(--trans);border:1px solid transparent}
+.ri:hover{border-color:var(--border);transform:translateX(2px)}
+.rp{font-size:.68rem;font-weight:700;color:var(--muted);width:22px;text-align:center;flex-shrink:0}
+.rn{flex:1;font-weight:500;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rpct{font-weight:800;font-size:.84rem;flex-shrink:0}
+/* ── TABLE ── */
+.tw{overflow-x:auto;max-height:480px;overflow-y:auto;margin-top:11px}
+table{width:100%;border-collapse:collapse;font-size:.75rem}
+thead th{position:sticky;top:0;background:var(--header);color:var(--muted);padding:9px 11px;text-align:left;font-weight:600;white-space:nowrap;font-size:.68rem;text-transform:uppercase;letter-spacing:.5px}
+tbody tr{border-bottom:1px solid var(--border);transition:background .15s}
+tbody tr:hover{background:rgba(59,130,246,.07);cursor:pointer}
+tbody td{padding:8px 11px}
+.pl{display:inline-block;padding:2px 8px;border-radius:20px;font-size:.66rem;font-weight:700}
+.pg{background:rgba(34,197,94,.15);color:var(--green)}
+.py{background:rgba(245,158,11,.15);color:var(--yellow)}
+.pr{background:rgba(239,68,68,.15);color:var(--red)}
+.pm{background:rgba(203,213,225,.1);color:var(--muted)}
+.bm{background:var(--border);border-radius:4px;height:7px;width:65px;display:inline-block;vertical-align:middle}
+.bf2{height:100%;border-radius:4px}
+/* ── SIDEBAR CONTENT ── */
+.det-pct{font-size:2.8rem;font-weight:900;line-height:1;margin:10px 0 8px}
+.det-bar{background:var(--border);border-radius:6px;height:11px;overflow:hidden;margin-bottom:14px}
+.det-fill{height:100%;border-radius:6px;transition:width .6s ease}
+.srow{display:flex;gap:9px;margin-bottom:12px}
+.sb2{flex:1;background:var(--surface2);border-radius:8px;padding:10px;text-align:center}
+.sv{font-size:1.25rem;font-weight:700}
+.sl{font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.info-box{background:var(--surface2);border-radius:10px;padding:13px;margin-bottom:12px}
+.info-ttl{font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:9px;font-weight:700}
+.dbar{margin-bottom:8px}
+.dbar-row{display:flex;justify-content:space-between;font-size:.72rem;margin-bottom:3px}
+.dbar-bg{background:var(--border);border-radius:3px;height:5px}
+.dbar-fill{height:100%;border-radius:3px}
+/* ── ALERT ITEMS ── */
+.ai{padding:10px 12px;border-radius:8px;margin-bottom:7px;border-left:3px solid;font-size:.76rem;cursor:pointer;transition:var(--trans)}
+.ai:hover{opacity:.85}
+.ai-r{background:rgba(239,68,68,.1);border-color:var(--red)}
+.ai-y{background:rgba(245,158,11,.1);border-color:var(--yellow)}
+.ai-g{background:rgba(34,197,94,.1);border-color:var(--green)}
+.an{font-weight:700;margin-bottom:2px}
+.ad{color:var(--muted);font-size:.7rem}
+.at{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin:13px 0 6px;display:flex;align-items:center;gap:5px}
+/* ── RESPONSIVE ── */
+@media(max-width:768px){.content{padding:12px 12px}.bi span:not(:first-child){display:none}.eg{flex-wrap:wrap}}
+@media print{.hdr-r,.tb,.hmbtn,.sb,.overlay{display:none!important}.cinner{min-width:100%!important}}
+</style>
+</head>
+<body>
+
+<!-- SIDEBARS -->
+<div id="sbD" class="sb">
+  <div class="sb-hdr"><h3>📋 Detalle de la Junta</h3><button class="sb-x" onclick="closeAll()">✕</button></div>
+  <div class="sb-body" id="sbDc"></div>
+</div>
+<div id="sbA" class="sb" style="width:330px">
+  <div class="sb-hdr"><h3>🚨 Centro de Alertas</h3><button class="sb-x" onclick="closeAll()">✕</button></div>
+  <div class="sb-body" id="sbAc"></div>
+</div>
+<div id="sbC" class="sb" style="width:340px">
+  <div class="sb-hdr"><h3>🔌 Conectar Google Sheet</h3><button class="sb-x" onclick="closeAll()">✕</button></div>
+  <div class="sb-body" id="sbCc">
+    <div style="font-size:.76rem;color:var(--muted);line-height:1.6;margin-bottom:14px">
+      Pegá la URL de la Apps Script Web App (termina en <code>/exec</code>) que publica Base_Maestra como JSON.
+      Se genera con <code>Script3.gs</code>, función <code>doGet()</code>. Mientras no la conectes, el dashboard
+      usa la copia de datos incorporada (Base_Maestra real al momento de generar este archivo).
+    </div>
+    <input id="connUrl" type="text" placeholder="https://script.google.com/macros/s/.../exec"
+      style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:9px 12px;border-radius:8px;font-size:.78rem;margin-bottom:10px;outline:none">
+    <div id="connMsg" style="font-size:.72rem;margin-bottom:10px;min-height:16px"></div>
+    <div style="display:flex;gap:8px">
+      <button class="bf" style="flex:1" onclick="disconnectSheet()">Quitar</button>
+      <button class="bf on" style="flex:1;background:var(--blue);border-color:var(--blue);color:#fff" onclick="connectSheet()">Conectar</button>
+    </div>
+  </div>
+</div>
+<div class="overlay" id="ov" onclick="closeAll()"></div>
+
+<!-- HEADER -->
+<header class="hdr">
+  <div>
+    <h1>📊 Control de Planillas y Facturas</h1>
+    <p>Dashboard ejecutivo · 55 Juntas Educativas y Administrativas · CEIE&amp;A Consultores</p>
+  </div>
+  <div class="hdr-r">
+    <button class="bi" id="refreshBtn" onclick="manualRefresh()" style="background:var(--blue);border-color:var(--blue);color:#fff">🔄 <span>Actualizar datos</span></button>
+    <button class="bi" onclick="openAlerts()">🔔 <span id="aCnt">0</span><span class="badge" id="aBdg">0</span></button>
+    <button class="bi" onclick="openConn()" id="connBtn">🔌 <span>Datos incorporados</span></button>
+    <button class="bi" onclick="toggleTheme()" id="tBtn">🌙 Oscuro</button>
+  </div>
+</header>
+
+<!-- AÑO + MESES -->
+<div class="ybar">
+  <span class="ylbl">Año:</span>
+  <select class="ysel" id="ysel"></select>
+</div>
+<div class="tabs" id="tabs"></div>
+
+<!-- CONTENT -->
+<div class="content" id="mc">
+
+  <!-- KPIs -->
+  <div class="kpi-grid a1" id="kpis"></div>
+
+  <!-- Gauge + Risk + Trend -->
+  <div class="mid a2">
+    <div class="card">
+      <div class="ct">⚡ Velocímetro</div>
+      <div class="gwrap">
+        <canvas id="gc" width="210" height="135"></canvas>
+        <div class="glbls"><span>0%</span><span>50%</span><span>100%</span></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="ct">🎯 Panel de Riesgo</div>
+      <div class="risk-g" id="rg"></div>
+    </div>
+    <div class="card">
+      <div class="ct">📈 Tendencia</div>
+      <div class="trnd" id="trnd"></div>
+    </div>
+  </div>
+
+  <!-- Toolbar -->
+  <div class="tb a3">
+    <input class="si" id="si" type="text" placeholder="🔍  Buscar junta…">
+    <div class="fg">
+      <button class="bf on" onclick="setF(this,'all')">Todas</button>
+      <button class="bf" onclick="setF(this,'comp')">✅ Comp.</button>
+      <button class="bf" onclick="setF(this,'proc')">🟡 Proceso</button>
+      <button class="bf" onclick="setF(this,'crit')">🔴 Críticas</button>
+    </div>
+    <div class="eg">
+      <button class="be" onclick="xCSV()">📊 <span>Excel</span></button>
+      <button class="be" onclick="xPNG()">🖼️ <span>PNG</span></button>
+      <button class="be" onclick="window.print()">🖨️ <span>Imprimir</span></button>
+    </div>
+  </div>
+
+  <!-- Bar chart -->
+  <div class="card chart-card a3" style="margin-bottom:16px">
+    <div class="ct">📊 Avance por Junta — <span id="jBdg" style="color:var(--blue)"></span>
+      <span style="margin-left:auto;font-size:.68rem;font-weight:400;color:var(--muted)">← deslizá para ver las 55 →</span>
+    </div>
+    <div class="legend">
+      <div class="li"><div class="ld" style="background:var(--red)"></div>0–40% Crítico</div>
+      <div class="li"><div class="ld" style="background:var(--yellow)"></div>40–90% En proceso</div>
+      <div class="li"><div class="ld" style="background:var(--green)"></div>90–100% Completado</div>
+      <div class="li"><div class="ll" style="background:var(--indigo)"></div>— META 90%</div>
+    </div>
+    <div class="cscroll"><div class="cinner"><canvas id="cJ"></canvas></div></div>
+  </div>
+
+  <!-- Heatmap -->
+  <div class="card hmc a4">
+    <div class="hm-t">
+      <div class="ct" style="margin-bottom:0">🗺️ Mapa de Calor</div>
+      <button class="hmbtn" id="hmb" onclick="toggleHM()">▼ Mostrar</button>
+    </div>
+    <div class="hm-g" id="hmg"></div>
+  </div>
+
+  <!-- Rankings -->
+  <div class="rg a4">
+    <div class="card"><div class="ct">🏆 Top 10 Mayor Avance</div><ul class="rl" id="rTop"></ul></div>
+    <div class="card"><div class="ct">🚨 Top 10 Menor Avance</div><ul class="rl" id="rBot"></ul></div>
+  </div>
+
+  <!-- Table -->
+  <div class="card a5">
+    <div class="ct">📋 Detalle por Junta — <span id="tBdg" style="color:var(--blue)"></span>
+      <span id="fCnt" style="margin-left:8px;font-size:.68rem;color:var(--muted)"></span>
+    </div>
+    <div class="tw">
+      <table>
+        <thead><tr><th>#</th><th>Institución</th><th>Avance</th><th>%</th><th>✅</th><th>⏳</th><th>➖</th><th>Estado</th></tr></thead>
+        <tbody id="tb"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── NOMBRES (fuente: Catalogo_Juntas, Base_Maestra real) ──
+const NM=[
+"Junta Educación Escuela Rafael Yglesias Castro",
+"Junta Educación Escuela Lider Los Corales Limón",
+"Junta Educación Escuela General Tomas Guardia",
+"Junta Educación Escuela Barrio Limoncito",
+"Junta Educación Escuela Beverly",
+"Junta Administrativa Liceo Nuevo de Limón Mario Bourne B.",
+"Junta Educación Escuela Bananito Sur",
+"Junta de Educación Escuela Aguas Zarcas",
+"Junta de Educación Escuela Atilia Mata Freses",
+"Junta Educación Escuela Llano Grande",
+"Junta Educación Escuela Finca Ocho",
+"Junta Educación Escuela Bonifacio",
+"Junta Educación Escuela El Progreso",
+"Junta Administrativa Colegio, CTPA,V.E",
+"Junta de Educación Escuela San Rafael de Pandora",
+"Junta de Educación Escuela El Porvenir",
+"Junta de Educación Escuela Pandora Oeste",
+"Junta Educación Escuela Finca Costa Rica",
+"Junta Educación Escuela El Parque",
+"Junta Educación Escuela Finca Margarita",
+"Junta Administrativa Colegio Académico Paraíso",
+"Junta Educación Escuela Comadre",
+"Junta Administrativa Colegio CINDEA Kekoldi",
+"Junta Administrativa Colegio Indígena de Shiroles",
+"Junta Educación Escuela La Bomba",
+"Junta Educación Escuela María Luisa",
+"Junta Educación Escuela Paraiso Bananito",
+"Junta Administrativa Colegio Científico del Atlántico",
+"Junta Administrativa Liceo Aguas Zarcas",
+"Junta Educación Escuela Colonia",
+"Junta Educación Escuela Pueblo Nuevo Limón",
+"Junta Educación Escuela San Clemente",
+"Junta Educación Escuela Siberia",
+"Junta Educación Escuela La Guaria",
+"Junta de Educación Escuela San Andrés",
+"Junta Educación Escuela Búfalo",
+"Junta Administrativa Unidad Pedagógica Río Cuba",
+"Junta Educación Escuela Olivia",
+"Junta Administrativa Colegio Telesecundaria Liceo Gandoca",
+"Junta Educación Escuela La Celia",
+"Junta Educación Escuela Manzanillo",
+"Junta de Educación Escuela Santa Marta, Limón",
+"Junta Educación Escuela Patiño",
+"Junta Educación Escuela Volio",
+"Junta Educación Escuela Yorkin",
+"Junta Educación Escuela Monte Sion",
+"Junta Educación Escuela Gavilán Canta",
+"Junta Administrativa Colegio Telesecundaria Gavilán Vesta",
+"Junta Educación Escuela Orochico",
+"Junta Educación Escuela Bordon",
+"Junta de Educación Escuela Villa del Mar 1",
+"Junta Educación Escuela Penshurt",
+"Junta Administrativa Liceo Rural de Puerto Viejo",
+"Junta Educación Escuela Puerto Viejo Talamanca",
+"Junta de Educación Escuela La Armenia"
+];
+
+function bj(raw){return raw.map((r,i)=>({no:i+1,n:NM[i],a:r[0],l:r[1],p:r[2],na:r[3]}))}
+function be(){return NM.map((n,i)=>({no:i+1,n,a:0,l:0,p:0,na:0}))}
+
+// ── DATOS REALES (fuente: Base_Maestra) — meses sin datos quedan en 0/blanco, sin inventar avance ──
+const DY={
+  "2026":{
+    "Enero": {tt:55,tot:0,listo:0,ag:0,j:null},
+    "Febrero": {tt:55,tot:0,listo:0,ag:0,j:null},
+    "Marzo": {tt:55,tot:0,listo:0,ag:0,j:null},
+    "Abril": {tt:55,tot:0,listo:0,ag:0,j:null},
+    "Mayo": {tt:55,tot:0,listo:0,ag:0,j:null},
+    "Junio": {tt:55,tot:632,listo:561,ag:0.8877,j:[{no:1,n:NM[0],a:0.6429,l:9,p:5,na:3},{no:2,n:NM[1],a:1,l:12,p:0,na:5},{no:3,n:NM[2],a:0.9231,l:12,p:1,na:4},{no:4,n:NM[3],a:0.8462,l:11,p:2,na:4},{no:5,n:NM[4],a:1,l:11,p:0,na:6},{no:6,n:NM[5],a:1,l:13,p:0,na:4},{no:7,n:NM[6],a:0.7692,l:10,p:3,na:4},{no:8,n:NM[7],a:1,l:12,p:0,na:5},{no:9,n:NM[8],a:1,l:11,p:0,na:6},{no:10,n:NM[9],a:0.9091,l:10,p:1,na:6},{no:11,n:NM[10],a:1,l:11,p:0,na:6},{no:12,n:NM[11],a:1,l:11,p:0,na:6},{no:13,n:NM[12],a:0.2857,l:4,p:10,na:3},{no:14,n:NM[13],a:1,l:15,p:0,na:2},{no:15,n:NM[14],a:1,l:11,p:0,na:6},{no:16,n:NM[15],a:0.4615,l:6,p:7,na:4},{no:17,n:NM[16],a:0.4615,l:6,p:7,na:4},{no:18,n:NM[17],a:1,l:11,p:0,na:6},{no:19,n:NM[18],a:1,l:12,p:0,na:5},{no:20,n:NM[19],a:1,l:11,p:0,na:6},{no:21,n:NM[20],a:1,l:12,p:0,na:5},{no:22,n:NM[21],a:1,l:12,p:0,na:5},{no:23,n:NM[22],a:1,l:15,p:0,na:2},{no:24,n:NM[23],a:1,l:12,p:0,na:5},{no:25,n:NM[24],a:1,l:12,p:0,na:5},{no:26,n:NM[25],a:1,l:11,p:0,na:6},{no:27,n:NM[26],a:0.9091,l:10,p:1,na:6},{no:28,n:NM[27],a:1,l:5,p:0,na:12},{no:29,n:NM[28],a:0.9286,l:13,p:1,na:3},{no:30,n:NM[29],a:1,l:11,p:0,na:6},{no:31,n:NM[30],a:1,l:15,p:0,na:2},{no:32,n:NM[31],a:0.7273,l:8,p:3,na:6},{no:33,n:NM[32],a:0.8462,l:11,p:2,na:4},{no:34,n:NM[33],a:0.8462,l:11,p:2,na:4},{no:35,n:NM[34],a:1,l:12,p:0,na:5},{no:36,n:NM[35],a:1,l:12,p:0,na:5},{no:37,n:NM[36],a:0.9167,l:11,p:1,na:5},{no:38,n:NM[37],a:1,l:12,p:0,na:5},{no:39,n:NM[38],a:0.9091,l:10,p:1,na:6},{no:40,n:NM[39],a:1,l:12,p:0,na:5},{no:41,n:NM[40],a:1,l:11,p:0,na:6},{no:42,n:NM[41],a:1,l:11,p:0,na:6},{no:43,n:NM[42],a:1,l:11,p:0,na:6},{no:44,n:NM[43],a:0.8571,l:12,p:2,na:3},{no:45,n:NM[44],a:1,l:11,p:0,na:6},{no:46,n:NM[45],a:1,l:11,p:0,na:6},{no:47,n:NM[46],a:0.5833,l:7,p:5,na:5},{no:48,n:NM[47],a:0.9231,l:12,p:1,na:4},{no:49,n:NM[48],a:1,l:11,p:0,na:6},{no:50,n:NM[49],a:0.0909,l:1,p:10,na:6},{no:51,n:NM[50],a:1,l:6,p:0,na:11},{no:52,n:NM[51],a:0.3333,l:3,p:6,na:8},{no:53,n:NM[52],a:1,l:5,p:0,na:12},{no:54,n:NM[53],a:1,l:7,p:0,na:10},{no:55,n:NM[54],a:1,l:6,p:0,na:11}]},
+    "Julio": {tt:55,tot:711,listo:0,ag:0.0,j:[{no:1,n:NM[0],a:0,l:0,p:14,na:3},{no:2,n:NM[1],a:0,l:0,p:14,na:3},{no:3,n:NM[2],a:0,l:0,p:16,na:1},{no:4,n:NM[3],a:0,l:0,p:14,na:3},{no:5,n:NM[4],a:0,l:0,p:11,na:6},{no:6,n:NM[5],a:0,l:0,p:16,na:1},{no:7,n:NM[6],a:0,l:0,p:14,na:3},{no:8,n:NM[7],a:0,l:0,p:14,na:3},{no:9,n:NM[8],a:0,l:0,p:14,na:3},{no:10,n:NM[9],a:0,l:0,p:11,na:6},{no:11,n:NM[10],a:0,l:0,p:11,na:6},{no:12,n:NM[11],a:0,l:0,p:11,na:6},{no:13,n:NM[12],a:0,l:0,p:14,na:3},{no:14,n:NM[13],a:0,l:0,p:17,na:0},{no:15,n:NM[14],a:0,l:0,p:11,na:6},{no:16,n:NM[15],a:0,l:0,p:14,na:3},{no:17,n:NM[16],a:0,l:0,p:14,na:3},{no:18,n:NM[17],a:0,l:0,p:12,na:5},{no:19,n:NM[18],a:0,l:0,p:14,na:3},{no:20,n:NM[19],a:0,l:0,p:11,na:6},{no:21,n:NM[20],a:0,l:0,p:16,na:1},{no:22,n:NM[21],a:0,l:0,p:14,na:3},{no:23,n:NM[22],a:0,l:0,p:16,na:1},{no:24,n:NM[23],a:0,l:0,p:12,na:5},{no:25,n:NM[24],a:0,l:0,p:14,na:3},{no:26,n:NM[25],a:0,l:0,p:11,na:6},{no:27,n:NM[26],a:0,l:0,p:14,na:3},{no:28,n:NM[27],a:0,l:0,p:14,na:3},{no:29,n:NM[28],a:0,l:0,p:16,na:1},{no:30,n:NM[29],a:0,l:0,p:11,na:6},{no:31,n:NM[30],a:0,l:0,p:16,na:1},{no:32,n:NM[31],a:0,l:0,p:11,na:6},{no:33,n:NM[32],a:0,l:0,p:14,na:3},{no:34,n:NM[33],a:0,l:0,p:14,na:3},{no:35,n:NM[34],a:0,l:0,p:16,na:1},{no:36,n:NM[35],a:0,l:0,p:16,na:1},{no:37,n:NM[36],a:0,l:0,p:12,na:5},{no:38,n:NM[37],a:0,l:0,p:14,na:3},{no:39,n:NM[38],a:0,l:0,p:11,na:6},{no:40,n:NM[39],a:0,l:0,p:14,na:3},{no:41,n:NM[40],a:0,l:0,p:11,na:6},{no:42,n:NM[41],a:0,l:0,p:14,na:3},{no:43,n:NM[42],a:0,l:0,p:14,na:3},{no:44,n:NM[43],a:0,l:0,p:16,na:1},{no:45,n:NM[44],a:0,l:0,p:11,na:6},{no:46,n:NM[45],a:0,l:0,p:11,na:6},{no:47,n:NM[46],a:0,l:0,p:14,na:3},{no:48,n:NM[47],a:0,l:0,p:16,na:1},{no:49,n:NM[48],a:0,l:0,p:11,na:6},{no:50,n:NM[49],a:0,l:0,p:11,na:6},{no:51,n:NM[50],a:0,l:0,p:6,na:11},{no:52,n:NM[51],a:0,l:0,p:9,na:8},{no:53,n:NM[52],a:0,l:0,p:6,na:11},{no:54,n:NM[53],a:0,l:0,p:9,na:8},{no:55,n:NM[54],a:0,l:0,p:9,na:8}]},
+    "Agosto": {tt:55,tot:711,listo:1,ag:0.0014,j:[{no:1,n:NM[0],a:0,l:0,p:14,na:3},{no:2,n:NM[1],a:0,l:0,p:14,na:3},{no:3,n:NM[2],a:0,l:0,p:16,na:1},{no:4,n:NM[3],a:0,l:0,p:14,na:3},{no:5,n:NM[4],a:0,l:0,p:11,na:6},{no:6,n:NM[5],a:0,l:0,p:16,na:1},{no:7,n:NM[6],a:0,l:0,p:14,na:3},{no:8,n:NM[7],a:0,l:0,p:14,na:3},{no:9,n:NM[8],a:0,l:0,p:14,na:3},{no:10,n:NM[9],a:0,l:0,p:11,na:6},{no:11,n:NM[10],a:0,l:0,p:11,na:6},{no:12,n:NM[11],a:0,l:0,p:11,na:6},{no:13,n:NM[12],a:0,l:0,p:14,na:3},{no:14,n:NM[13],a:0,l:0,p:17,na:0},{no:15,n:NM[14],a:0,l:0,p:11,na:6},{no:16,n:NM[15],a:0,l:0,p:14,na:3},{no:17,n:NM[16],a:0,l:0,p:14,na:3},{no:18,n:NM[17],a:0,l:0,p:12,na:5},{no:19,n:NM[18],a:0,l:0,p:14,na:3},{no:20,n:NM[19],a:0,l:0,p:11,na:6},{no:21,n:NM[20],a:0,l:0,p:16,na:1},{no:22,n:NM[21],a:0.0714,l:1,p:13,na:3},{no:23,n:NM[22],a:0,l:0,p:16,na:1},{no:24,n:NM[23],a:0,l:0,p:12,na:5},{no:25,n:NM[24],a:0,l:0,p:14,na:3},{no:26,n:NM[25],a:0,l:0,p:11,na:6},{no:27,n:NM[26],a:0,l:0,p:14,na:3},{no:28,n:NM[27],a:0,l:0,p:14,na:3},{no:29,n:NM[28],a:0,l:0,p:16,na:1},{no:30,n:NM[29],a:0,l:0,p:11,na:6},{no:31,n:NM[30],a:0,l:0,p:16,na:1},{no:32,n:NM[31],a:0,l:0,p:11,na:6},{no:33,n:NM[32],a:0,l:0,p:14,na:3},{no:34,n:NM[33],a:0,l:0,p:14,na:3},{no:35,n:NM[34],a:0,l:0,p:16,na:1},{no:36,n:NM[35],a:0,l:0,p:16,na:1},{no:37,n:NM[36],a:0,l:0,p:12,na:5},{no:38,n:NM[37],a:0,l:0,p:14,na:3},{no:39,n:NM[38],a:0,l:0,p:11,na:6},{no:40,n:NM[39],a:0,l:0,p:14,na:3},{no:41,n:NM[40],a:0,l:0,p:11,na:6},{no:42,n:NM[41],a:0,l:0,p:14,na:3},{no:43,n:NM[42],a:0,l:0,p:14,na:3},{no:44,n:NM[43],a:0,l:0,p:16,na:1},{no:45,n:NM[44],a:0,l:0,p:11,na:6},{no:46,n:NM[45],a:0,l:0,p:11,na:6},{no:47,n:NM[46],a:0,l:0,p:14,na:3},{no:48,n:NM[47],a:0,l:0,p:16,na:1},{no:49,n:NM[48],a:0,l:0,p:11,na:6},{no:50,n:NM[49],a:0,l:0,p:11,na:6},{no:51,n:NM[50],a:0,l:0,p:6,na:11},{no:52,n:NM[51],a:0,l:0,p:9,na:8},{no:53,n:NM[52],a:0,l:0,p:6,na:11},{no:54,n:NM[53],a:0,l:0,p:9,na:8},{no:55,n:NM[54],a:0,l:0,p:9,na:8}]},
+    "Setiembre": {tt:55,tot:711,listo:1,ag:0.0014,j:[{no:1,n:NM[0],a:0,l:0,p:14,na:3},{no:2,n:NM[1],a:0,l:0,p:14,na:3},{no:3,n:NM[2],a:0,l:0,p:16,na:1},{no:4,n:NM[3],a:0,l:0,p:14,na:3},{no:5,n:NM[4],a:0,l:0,p:11,na:6},{no:6,n:NM[5],a:0,l:0,p:16,na:1},{no:7,n:NM[6],a:0,l:0,p:14,na:3},{no:8,n:NM[7],a:0,l:0,p:14,na:3},{no:9,n:NM[8],a:0,l:0,p:14,na:3},{no:10,n:NM[9],a:0,l:0,p:11,na:6},{no:11,n:NM[10],a:0,l:0,p:11,na:6},{no:12,n:NM[11],a:0,l:0,p:11,na:6},{no:13,n:NM[12],a:0,l:0,p:14,na:3},{no:14,n:NM[13],a:0,l:0,p:17,na:0},{no:15,n:NM[14],a:0,l:0,p:11,na:6},{no:16,n:NM[15],a:0,l:0,p:14,na:3},{no:17,n:NM[16],a:0,l:0,p:14,na:3},{no:18,n:NM[17],a:0,l:0,p:12,na:5},{no:19,n:NM[18],a:0,l:0,p:14,na:3},{no:20,n:NM[19],a:0,l:0,p:11,na:6},{no:21,n:NM[20],a:0,l:0,p:16,na:1},{no:22,n:NM[21],a:0.0714,l:1,p:13,na:3},{no:23,n:NM[22],a:0,l:0,p:16,na:1},{no:24,n:NM[23],a:0,l:0,p:12,na:5},{no:25,n:NM[24],a:0,l:0,p:14,na:3},{no:26,n:NM[25],a:0,l:0,p:11,na:6},{no:27,n:NM[26],a:0,l:0,p:14,na:3},{no:28,n:NM[27],a:0,l:0,p:14,na:3},{no:29,n:NM[28],a:0,l:0,p:16,na:1},{no:30,n:NM[29],a:0,l:0,p:11,na:6},{no:31,n:NM[30],a:0,l:0,p:16,na:1},{no:32,n:NM[31],a:0,l:0,p:11,na:6},{no:33,n:NM[32],a:0,l:0,p:14,na:3},{no:34,n:NM[33],a:0,l:0,p:14,na:3},{no:35,n:NM[34],a:0,l:0,p:16,na:1},{no:36,n:NM[35],a:0,l:0,p:16,na:1},{no:37,n:NM[36],a:0,l:0,p:12,na:5},{no:38,n:NM[37],a:0,l:0,p:14,na:3},{no:39,n:NM[38],a:0,l:0,p:11,na:6},{no:40,n:NM[39],a:0,l:0,p:14,na:3},{no:41,n:NM[40],a:0,l:0,p:11,na:6},{no:42,n:NM[41],a:0,l:0,p:14,na:3},{no:43,n:NM[42],a:0,l:0,p:14,na:3},{no:44,n:NM[43],a:0,l:0,p:16,na:1},{no:45,n:NM[44],a:0,l:0,p:11,na:6},{no:46,n:NM[45],a:0,l:0,p:11,na:6},{no:47,n:NM[46],a:0,l:0,p:14,na:3},{no:48,n:NM[47],a:0,l:0,p:16,na:1},{no:49,n:NM[48],a:0,l:0,p:11,na:6},{no:50,n:NM[49],a:0,l:0,p:11,na:6},{no:51,n:NM[50],a:0,l:0,p:6,na:11},{no:52,n:NM[51],a:0,l:0,p:9,na:8},{no:53,n:NM[52],a:0,l:0,p:6,na:11},{no:54,n:NM[53],a:0,l:0,p:9,na:8},{no:55,n:NM[54],a:0,l:0,p:9,na:8}]},
+    "Octubre": {tt:55,tot:711,listo:1,ag:0.0014,j:[{no:1,n:NM[0],a:0,l:0,p:14,na:3},{no:2,n:NM[1],a:0,l:0,p:14,na:3},{no:3,n:NM[2],a:0,l:0,p:16,na:1},{no:4,n:NM[3],a:0,l:0,p:14,na:3},{no:5,n:NM[4],a:0,l:0,p:11,na:6},{no:6,n:NM[5],a:0,l:0,p:16,na:1},{no:7,n:NM[6],a:0,l:0,p:14,na:3},{no:8,n:NM[7],a:0,l:0,p:14,na:3},{no:9,n:NM[8],a:0,l:0,p:14,na:3},{no:10,n:NM[9],a:0,l:0,p:11,na:6},{no:11,n:NM[10],a:0,l:0,p:11,na:6},{no:12,n:NM[11],a:0,l:0,p:11,na:6},{no:13,n:NM[12],a:0,l:0,p:14,na:3},{no:14,n:NM[13],a:0,l:0,p:17,na:0},{no:15,n:NM[14],a:0,l:0,p:11,na:6},{no:16,n:NM[15],a:0,l:0,p:14,na:3},{no:17,n:NM[16],a:0,l:0,p:14,na:3},{no:18,n:NM[17],a:0,l:0,p:12,na:5},{no:19,n:NM[18],a:0,l:0,p:14,na:3},{no:20,n:NM[19],a:0,l:0,p:11,na:6},{no:21,n:NM[20],a:0,l:0,p:16,na:1},{no:22,n:NM[21],a:0.0714,l:1,p:13,na:3},{no:23,n:NM[22],a:0,l:0,p:16,na:1},{no:24,n:NM[23],a:0,l:0,p:12,na:5},{no:25,n:NM[24],a:0,l:0,p:14,na:3},{no:26,n:NM[25],a:0,l:0,p:11,na:6},{no:27,n:NM[26],a:0,l:0,p:14,na:3},{no:28,n:NM[27],a:0,l:0,p:14,na:3},{no:29,n:NM[28],a:0,l:0,p:16,na:1},{no:30,n:NM[29],a:0,l:0,p:11,na:6},{no:31,n:NM[30],a:0,l:0,p:16,na:1},{no:32,n:NM[31],a:0,l:0,p:11,na:6},{no:33,n:NM[32],a:0,l:0,p:14,na:3},{no:34,n:NM[33],a:0,l:0,p:14,na:3},{no:35,n:NM[34],a:0,l:0,p:16,na:1},{no:36,n:NM[35],a:0,l:0,p:16,na:1},{no:37,n:NM[36],a:0,l:0,p:12,na:5},{no:38,n:NM[37],a:0,l:0,p:14,na:3},{no:39,n:NM[38],a:0,l:0,p:11,na:6},{no:40,n:NM[39],a:0,l:0,p:14,na:3},{no:41,n:NM[40],a:0,l:0,p:11,na:6},{no:42,n:NM[41],a:0,l:0,p:14,na:3},{no:43,n:NM[42],a:0,l:0,p:14,na:3},{no:44,n:NM[43],a:0,l:0,p:16,na:1},{no:45,n:NM[44],a:0,l:0,p:11,na:6},{no:46,n:NM[45],a:0,l:0,p:11,na:6},{no:47,n:NM[46],a:0,l:0,p:14,na:3},{no:48,n:NM[47],a:0,l:0,p:16,na:1},{no:49,n:NM[48],a:0,l:0,p:11,na:6},{no:50,n:NM[49],a:0,l:0,p:11,na:6},{no:51,n:NM[50],a:0,l:0,p:6,na:11},{no:52,n:NM[51],a:0,l:0,p:9,na:8},{no:53,n:NM[52],a:0,l:0,p:6,na:11},{no:54,n:NM[53],a:0,l:0,p:9,na:8},{no:55,n:NM[54],a:0,l:0,p:9,na:8}]},
+    "Noviembre": {tt:55,tot:711,listo:1,ag:0.0014,j:[{no:1,n:NM[0],a:0,l:0,p:14,na:3},{no:2,n:NM[1],a:0,l:0,p:14,na:3},{no:3,n:NM[2],a:0,l:0,p:16,na:1},{no:4,n:NM[3],a:0,l:0,p:14,na:3},{no:5,n:NM[4],a:0,l:0,p:11,na:6},{no:6,n:NM[5],a:0,l:0,p:16,na:1},{no:7,n:NM[6],a:0,l:0,p:14,na:3},{no:8,n:NM[7],a:0,l:0,p:14,na:3},{no:9,n:NM[8],a:0,l:0,p:14,na:3},{no:10,n:NM[9],a:0,l:0,p:11,na:6},{no:11,n:NM[10],a:0,l:0,p:11,na:6},{no:12,n:NM[11],a:0,l:0,p:11,na:6},{no:13,n:NM[12],a:0,l:0,p:14,na:3},{no:14,n:NM[13],a:0,l:0,p:17,na:0},{no:15,n:NM[14],a:0,l:0,p:11,na:6},{no:16,n:NM[15],a:0,l:0,p:14,na:3},{no:17,n:NM[16],a:0,l:0,p:14,na:3},{no:18,n:NM[17],a:0,l:0,p:12,na:5},{no:19,n:NM[18],a:0,l:0,p:14,na:3},{no:20,n:NM[19],a:0,l:0,p:11,na:6},{no:21,n:NM[20],a:0,l:0,p:16,na:1},{no:22,n:NM[21],a:0.0714,l:1,p:13,na:3},{no:23,n:NM[22],a:0,l:0,p:16,na:1},{no:24,n:NM[23],a:0,l:0,p:12,na:5},{no:25,n:NM[24],a:0,l:0,p:14,na:3},{no:26,n:NM[25],a:0,l:0,p:11,na:6},{no:27,n:NM[26],a:0,l:0,p:14,na:3},{no:28,n:NM[27],a:0,l:0,p:14,na:3},{no:29,n:NM[28],a:0,l:0,p:16,na:1},{no:30,n:NM[29],a:0,l:0,p:11,na:6},{no:31,n:NM[30],a:0,l:0,p:16,na:1},{no:32,n:NM[31],a:0,l:0,p:11,na:6},{no:33,n:NM[32],a:0,l:0,p:14,na:3},{no:34,n:NM[33],a:0,l:0,p:14,na:3},{no:35,n:NM[34],a:0,l:0,p:16,na:1},{no:36,n:NM[35],a:0,l:0,p:16,na:1},{no:37,n:NM[36],a:0,l:0,p:12,na:5},{no:38,n:NM[37],a:0,l:0,p:14,na:3},{no:39,n:NM[38],a:0,l:0,p:11,na:6},{no:40,n:NM[39],a:0,l:0,p:14,na:3},{no:41,n:NM[40],a:0,l:0,p:11,na:6},{no:42,n:NM[41],a:0,l:0,p:14,na:3},{no:43,n:NM[42],a:0,l:0,p:14,na:3},{no:44,n:NM[43],a:0,l:0,p:16,na:1},{no:45,n:NM[44],a:0,l:0,p:11,na:6},{no:46,n:NM[45],a:0,l:0,p:11,na:6},{no:47,n:NM[46],a:0,l:0,p:14,na:3},{no:48,n:NM[47],a:0,l:0,p:16,na:1},{no:49,n:NM[48],a:0,l:0,p:11,na:6},{no:50,n:NM[49],a:0,l:0,p:11,na:6},{no:51,n:NM[50],a:0,l:0,p:6,na:11},{no:52,n:NM[51],a:0,l:0,p:9,na:8},{no:53,n:NM[52],a:0,l:0,p:6,na:11},{no:54,n:NM[53],a:0,l:0,p:9,na:8},{no:55,n:NM[54],a:0,l:0,p:9,na:8}]},
+    "Diciembre": {tt:55,tot:711,listo:1,ag:0.0014,j:[{no:1,n:NM[0],a:0,l:0,p:14,na:3},{no:2,n:NM[1],a:0,l:0,p:14,na:3},{no:3,n:NM[2],a:0,l:0,p:16,na:1},{no:4,n:NM[3],a:0,l:0,p:14,na:3},{no:5,n:NM[4],a:0,l:0,p:11,na:6},{no:6,n:NM[5],a:0,l:0,p:16,na:1},{no:7,n:NM[6],a:0,l:0,p:14,na:3},{no:8,n:NM[7],a:0,l:0,p:14,na:3},{no:9,n:NM[8],a:0,l:0,p:14,na:3},{no:10,n:NM[9],a:0,l:0,p:11,na:6},{no:11,n:NM[10],a:0,l:0,p:11,na:6},{no:12,n:NM[11],a:0,l:0,p:11,na:6},{no:13,n:NM[12],a:0,l:0,p:14,na:3},{no:14,n:NM[13],a:0,l:0,p:17,na:0},{no:15,n:NM[14],a:0,l:0,p:11,na:6},{no:16,n:NM[15],a:0,l:0,p:14,na:3},{no:17,n:NM[16],a:0,l:0,p:14,na:3},{no:18,n:NM[17],a:0,l:0,p:12,na:5},{no:19,n:NM[18],a:0,l:0,p:14,na:3},{no:20,n:NM[19],a:0,l:0,p:11,na:6},{no:21,n:NM[20],a:0,l:0,p:16,na:1},{no:22,n:NM[21],a:0.0714,l:1,p:13,na:3},{no:23,n:NM[22],a:0,l:0,p:16,na:1},{no:24,n:NM[23],a:0,l:0,p:12,na:5},{no:25,n:NM[24],a:0,l:0,p:14,na:3},{no:26,n:NM[25],a:0,l:0,p:11,na:6},{no:27,n:NM[26],a:0,l:0,p:14,na:3},{no:28,n:NM[27],a:0,l:0,p:14,na:3},{no:29,n:NM[28],a:0,l:0,p:16,na:1},{no:30,n:NM[29],a:0,l:0,p:11,na:6},{no:31,n:NM[30],a:0,l:0,p:16,na:1},{no:32,n:NM[31],a:0,l:0,p:11,na:6},{no:33,n:NM[32],a:0,l:0,p:14,na:3},{no:34,n:NM[33],a:0,l:0,p:14,na:3},{no:35,n:NM[34],a:0,l:0,p:16,na:1},{no:36,n:NM[35],a:0,l:0,p:16,na:1},{no:37,n:NM[36],a:0,l:0,p:12,na:5},{no:38,n:NM[37],a:0,l:0,p:14,na:3},{no:39,n:NM[38],a:0,l:0,p:11,na:6},{no:40,n:NM[39],a:0,l:0,p:14,na:3},{no:41,n:NM[40],a:0,l:0,p:11,na:6},{no:42,n:NM[41],a:0,l:0,p:14,na:3},{no:43,n:NM[42],a:0,l:0,p:14,na:3},{no:44,n:NM[43],a:0,l:0,p:16,na:1},{no:45,n:NM[44],a:0,l:0,p:11,na:6},{no:46,n:NM[45],a:0,l:0,p:11,na:6},{no:47,n:NM[46],a:0,l:0,p:14,na:3},{no:48,n:NM[47],a:0,l:0,p:16,na:1},{no:49,n:NM[48],a:0,l:0,p:11,na:6},{no:50,n:NM[49],a:0,l:0,p:11,na:6},{no:51,n:NM[50],a:0,l:0,p:6,na:11},{no:52,n:NM[51],a:0,l:0,p:9,na:8},{no:53,n:NM[52],a:0,l:0,p:6,na:11},{no:54,n:NM[53],a:0,l:0,p:9,na:8},{no:55,n:NM[54],a:0,l:0,p:9,na:8}]}
+  }
+};
+
+const MO=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Setiembre","Octubre","Noviembre","Diciembre"];
+Object.keys(DY).forEach(yr=>MO.forEach(m=>{if(DY[yr][m]&&!DY[yr][m].j)DY[yr][m].j=be()}));
+
+
+// ── ESTADO ──
+const yrs=Object.keys(DY);
+let cY=yrs[0], cM="Junio", cF="all", cS="";
+let cJ=null;
+const JMAP={};
+
+// ── TEMA ──
+function initTheme(){
+  const t=localStorage.getItem("dbt")||"dark";
+  document.documentElement.setAttribute("data-theme",t);
+  document.getElementById("tBtn").textContent=t==="dark"?"🌙 Oscuro":"☀️ Claro";
+}
+function toggleTheme(){
+  const cur=document.documentElement.getAttribute("data-theme");
+  const nxt=cur==="dark"?"light":"dark";
+  document.documentElement.setAttribute("data-theme",nxt);
+  try{localStorage.setItem("dbt",nxt)}catch(e){}
+  document.getElementById("tBtn").textContent=nxt==="dark"?"🌙 Oscuro":"☀️ Claro";
+  setTimeout(render,80);
+}
+initTheme();
+
+// ── TABS ──
+const ysel=document.getElementById("ysel");
+yrs.forEach(y=>{const o=document.createElement("option");o.value=y;o.textContent=y;ysel.appendChild(o)});
+ysel.value=cY;
+ysel.addEventListener("change",e=>{cY=e.target.value;buildTabs();render()});
+
+function buildTabs(){
+  const el=document.getElementById("tabs");el.innerHTML="";
+  MO.forEach(m=>{
+    if(!DY[cY]?.[m])return;
+    const d=document.createElement("div");
+    d.className="tab"+(m===cM?" on":"");
+    d.textContent=m;
+    d.onclick=()=>{cM=m;el.querySelectorAll(".tab").forEach(t=>t.classList.remove("on"));d.classList.add("on");render()};
+    el.appendChild(d);
+  });
+}
+buildTabs();
+
+// ── HELPERS ──
+const pct=v=>Math.round(v*100);
+function bc(p){return p>=90?"#22C55E":p>=40?"#F59E0B":"#EF4444"}
+function ab(n){
+  return n.replace(/^Junta (de )?Educaci[oó]n (Escuela )?/gi,"")
+          .replace(/^Junta Administrativa (Colegio[,\s]*|Liceo )?/gi,"")
+          .replace(/^,\s*/,"").trim().slice(0,22);
+}
+function prevM(){
+  const i=MO.indexOf(cM);
+  for(let k=i-1;k>=0;k--){if(DY[cY]?.[MO[k]])return MO[k]}
+  return null;
+}
+
+// ── GAUGE ──
+function drawGauge(val){
+  const cv=document.getElementById("gc");if(!cv)return;
+  const c=cv.getContext("2d");
+  const W=cv.width,H=cv.height;
+  const cx=W/2,cy=H*.87,r=Math.min(W,H)*.44;
+  c.clearRect(0,0,W,H);
+  const dk=document.documentElement.getAttribute("data-theme")!=="light";
+  const track=dk?"#334155":"#E2E8F0";
+  // Track
+  c.beginPath();c.arc(cx,cy,r,Math.PI,2*Math.PI);
+  c.strokeStyle=track;c.lineWidth=14;c.lineCap="round";c.stroke();
+  // Segments
+  [[0,.4,"#EF4444"],[.4,.9,"#F59E0B"],[.9,1,"#22C55E"]].forEach(([s,e,cl])=>{
+    c.beginPath();c.arc(cx,cy,r,Math.PI+s*Math.PI,Math.PI+e*Math.PI);
+    c.strokeStyle=cl;c.lineWidth=14;c.lineCap="butt";c.stroke();
+  });
+  // Active arc
+  if(val>0){
+    c.beginPath();c.arc(cx,cy,r,Math.PI,Math.PI+(val/100)*Math.PI);
+    c.strokeStyle=bc(val)+"CC";c.lineWidth=16;c.lineCap="round";c.stroke();
+  }
+  // Needle
+  const ang=Math.PI+(val/100)*Math.PI;
+  c.save();
+  c.shadowColor="rgba(0,0,0,.35)";c.shadowBlur=4;
+  c.beginPath();c.moveTo(cx,cy);
+  c.lineTo(cx+r*.7*Math.cos(ang),cy+r*.7*Math.sin(ang));
+  c.strokeStyle=dk?"#F8FAFC":"#0F172A";c.lineWidth=2.5;c.lineCap="round";c.stroke();
+  c.restore();
+  // Center dot
+  c.beginPath();c.arc(cx,cy,7,0,2*Math.PI);c.fillStyle=dk?"#1E293B":"#fff";c.fill();
+  c.beginPath();c.arc(cx,cy,3.5,0,2*Math.PI);c.fillStyle=dk?"#F8FAFC":"#0F172A";c.fill();
+  // Text
+  c.fillStyle=dk?"#F8FAFC":"#0F172A";
+  c.font="bold 20px 'Segoe UI',sans-serif";c.textAlign="center";
+  c.fillText(val+"%",cx,cy-15);
+  c.font="10px 'Segoe UI',sans-serif";c.fillStyle=dk?"#CBD5E1":"#475569";
+  c.fillText("Avance",cx,cy-3);
+}
+
+// ── RENDER ──
+function render(){
+  const yd=DY[cY];
+  const data=yd[cM];
+  const all=data.j;
+  all.forEach(j=>{JMAP[j.no]=j});
+
+  const juntas=all.filter(j=>{
+    const p=pct(j.a);
+    if(cF==="comp"&&p<100)return false;
+    if(cF==="proc"&&(p<40||p>=100))return false;
+    if(cF==="crit"&&p>=40)return false;
+    if(cS&&!j.n.toLowerCase().includes(cS.toLowerCase()))return false;
+    return true;
+  });
+
+  const av=pct(data.ag);
+  const pend=data.tot-data.listo;
+  const comp=all.filter(j=>j.a>=1).length;
+  const proc=all.filter(j=>j.a>0&&j.a<1).length;
+  const crit=all.filter(j=>pct(j.a)<40).length;
+
+  // KPIs
+  document.getElementById("kpis").innerHTML=[
+    ["🏫","cbl","Total Juntas",data.tt,"instituciones"],
+    ["📈","cgr","Avance General",av+"%",data.listo+" tareas listas"],
+    ["✅","cgr","Completadas",comp,"juntas al 100%"],
+    ["⚙️","cye","En Proceso",proc,"entre 1–99%"],
+    ["🚨","cre","Críticas",crit,"menos del 40%"],
+    ["📋","cin","Tareas Totales",data.tot.toLocaleString(),"en el mes"],
+    ["⏳","cor","Pendientes",pend.toLocaleString(),"por completar"],
+  ].map(([ic,cl,lb,v,s])=>`<div class="kpi ${cl}"><div class="kpi-ic">${ic}</div><div class="kpi-lb">${lb}</div><div class="kpi-v">${v}</div><div class="kpi-s">${s}</div></div>`).join("");
+
+  // Gauge
+  drawGauge(av);
+
+  // Risk
+  const at=all.filter(j=>{const p=pct(j.a);return p>=40&&p<90}).length;
+  const sr=all.filter(j=>pct(j.a)>=90).length;
+  document.getElementById("rg").innerHTML=
+    `<div class="rc rc-r"><div class="rc-ic">🔴</div><div class="rc-n">${crit}</div><div class="rc-lb">Crítico</div><div class="rc-rg">0–39%</div></div>
+     <div class="rc rc-y"><div class="rc-ic">🟡</div><div class="rc-n">${at}</div><div class="rc-lb">Atención</div><div class="rc-rg">40–89%</div></div>
+     <div class="rc rc-g"><div class="rc-ic">🟢</div><div class="rc-n">${sr}</div><div class="rc-lb">Sin Riesgo</div><div class="rc-rg">90–100%</div></div>`;
+
+  // Trend
+  const pm=prevM();
+  const prev=pm?pct(yd[pm].ag):null;
+  const delta=pm?av-prev:null;
+  if(delta===null){
+    document.getElementById("trnd").innerHTML=`<div class="tdelta tfl">—</div><div class="tsub">Sin mes anterior disponible</div>`;
+  }else{
+    const sy=delta>0?"▲":delta<0?"▼":"→";
+    const cl=delta>0?"tup":delta<0?"tdn":"tfl";
+    document.getElementById("trnd").innerHTML=
+      `<div class="tdelta ${cl}">${sy} ${Math.abs(delta)}%</div>
+       <div class="tsub">vs <b>${pm}</b><br>${prev}% → ${av}%</div>`;
+  }
+
+  // Badges
+  document.getElementById("jBdg").textContent=cM+" "+cY;
+  document.getElementById("tBdg").textContent=cM+" "+cY;
+  document.getElementById("fCnt").textContent=`${juntas.length} / ${all.length}`;
+
+  // Bar chart
+  const lbs=juntas.map(j=>ab(j.n));
+  const vls=juntas.map(j=>pct(j.a));
+  const cls=vls.map(v=>bc(v));
+  if(cJ)cJ.destroy();
+  cJ=new Chart(document.getElementById("cJ"),{
+    type:"bar",
+    data:{
+      labels:lbs,
+      datasets:[
+        {type:"line",label:"META 90%",data:Array(juntas.length).fill(90),
+         borderColor:"#6366F1",borderDash:[6,4],pointRadius:0,borderWidth:1.8,fill:false,order:0},
+        {type:"bar",label:"Avance",data:vls,backgroundColor:cls,borderRadius:4,order:1}
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      animation:{duration:650,easing:"easeOutQuart"},
+      plugins:{
+        legend:{display:false},
+        tooltip:{
+          backgroundColor:"rgba(15,23,42,.95)",
+          borderColor:"#334155",borderWidth:1,
+          titleColor:"#F8FAFC",bodyColor:"#CBD5E1",padding:10,
+          callbacks:{
+            title:items=>{
+              if(!items.length||!items[0])return"";
+              return juntas[items[0].dataIndex]?.n||"";
+            },
+            label:item=>{
+              if(item.datasetIndex===0)return null;
+              const j=juntas[item.dataIndex];
+              if(!j)return null;
+              return[` Avance: ${item.raw}%`,` ✅ Listo: ${j.l}   ⏳ Pend: ${j.p}   ➖ N/A: ${j.na}`,` ${cM} ${cY}`];
+            }
+          }
+        }
+      },
+      scales:{
+        y:{max:100,min:0,ticks:{callback:v=>v+"%",font:{size:10},color:"#CBD5E1"},grid:{color:"rgba(51,65,85,.35)"}},
+        x:{ticks:{maxRotation:55,minRotation:45,font:{size:9},color:ctx=>bc(vls[ctx.index]||0)},grid:{display:false}}
+      },
+      onClick:(e,items)=>{if(items.length&&items[0].datasetIndex===1)openDet(juntas[items[0].dataIndex])}
+    }
+  });
+
+  // Heatmap
+  const hm=document.getElementById("hmg");
+  hm.innerHTML=juntas.map(j=>{
+    const p=pct(j.a);
+    const cl=p>=90?"hc-g":p>=40?"hc-y":"hc-r";
+    const sh=j.n.replace(/^Junta (de )?Educaci[oó]n (Escuela )?/gi,"").replace(/^Junta Administrativa /gi,"").slice(0,26);
+    return`<div class="hc ${cl}" onclick="openDetId(${j.no})" title="${j.n}"><div class="hn">${sh}</div><div class="hp">${p}%</div></div>`;
+  }).join("");
+
+  // Rankings
+  const s=[...all].sort((a,b)=>b.a-a.a);
+  const e=[...all].sort((a,b)=>a.a-b.a);
+  const medals=["🥇","🥈","🥉","4°","5°","6°","7°","8°","9°","10°"];
+  const rHTML=(lst,top)=>lst.slice(0,10).map((j,i)=>{
+    const p=pct(j.a);
+    return`<li class="ri" onclick="openDetId(${j.no})">
+      <span class="rp">${top?medals[i]:i+1+"°"}</span>
+      <span class="rn">${ab(j.n)}</span>
+      <span class="rpct" style="color:${bc(p)}">${p}%</span>
+    </li>`;
+  }).join("");
+  document.getElementById("rTop").innerHTML=rHTML(s,true);
+  document.getElementById("rBot").innerHTML=rHTML(e,false);
+
+  // Table
+  document.getElementById("tb").innerHTML=juntas.map(j=>{
+    const p=pct(j.a);const c=bc(p);
+    const est=p>=100?'<span class="pl pg">✅ Completo</span>':
+              p>=90? '<span class="pl pg">🏁 Casi listo</span>':
+              p>=40? '<span class="pl py">⚙️ En proceso</span>':
+              p>=1?  '<span class="pl pr">🔴 Iniciado</span>':
+                     '<span class="pl pm">⚪ Sin iniciar</span>';
+    const sh=j.n.replace(/^Junta (de )?Educaci[oó]n (Escuela )?/gi,"").replace(/^Junta Administrativa /gi,"").trim();
+    return`<tr onclick="openDetId(${j.no})">
+      <td><span style="color:var(--muted);font-size:.68rem">${j.no}</span></td>
+      <td style="max-width:230px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${j.n}">${sh}</td>
+      <td><div class="bm"><div class="bf2" style="width:${p}%;background:${c}"></div></div></td>
+      <td><b style="color:${c}">${p}%</b></td>
+      <td><span class="pl pg">${j.l}</span></td>
+      <td><span class="pl pr">${j.p}</span></td>
+      <td><span class="pl pm">${j.na}</span></td>
+      <td>${est}</td>
+    </tr>`;
+  }).join("");
+
+  // Alertas badge
+  const cri=all.filter(j=>pct(j.a)>0&&pct(j.a)<40).length;
+  const nr=all.filter(j=>pct(j.a)>=85&&pct(j.a)<100).length;
+  const tot=cri+nr;
+  document.getElementById("aCnt").textContent=tot;
+  document.getElementById("aBdg").textContent=tot;
+  document.getElementById("aBdg").className="badge"+(tot>0?" on":"");
+}
+
+// ── SIDEBAR DETALLE ──
+function openDet(j){
+  if(!j)return;
+  const p=pct(j.a);const c=bc(p);
+  const tot=j.l+j.p+j.na;
+  const bar=(n,t,cl)=>`<div class="dbar"><div class="dbar-row"><span>${n}</span><span style="color:${cl};font-weight:700">${t} (${tot?Math.round(t/tot*100):0}%)</span></div><div class="dbar-bg"><div class="dbar-fill" style="width:${tot?Math.round(t/tot*100):0}%;background:${cl}"></div></div></div>`;
+  document.getElementById("sbDc").innerHTML=`
+    <div style="text-align:center;padding:8px 0 16px">
+      <div style="font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px">${cM} ${cY}</div>
+      <div class="det-pct" style="color:${c}">${p}%</div>
+      <div class="det-bar"><div class="det-fill" style="width:${p}%;background:${c}"></div></div>
+      <div style="font-size:.76rem;color:var(--muted);line-height:1.4">${j.n}</div>
+    </div>
+    <div class="srow">
+      <div class="sb2"><div class="sv" style="color:var(--green)">${j.l}</div><div class="sl">✅ Listas</div></div>
+      <div class="sb2"><div class="sv" style="color:var(--red)">${j.p}</div><div class="sl">⏳ Pend.</div></div>
+      <div class="sb2"><div class="sv" style="color:var(--muted)">${j.na}</div><div class="sl">➖ N/A</div></div>
+    </div>
+    <div class="info-box">
+      <div class="info-ttl">📊 Distribución</div>
+      ${bar("✅ Tareas Listas",j.l,"var(--green)")}
+      ${bar("⏳ Pendientes",j.p,"var(--red)")}
+      ${bar("➖ No Aplica",j.na,"var(--muted)")}
+    </div>
+    <div class="info-box">
+      <div class="info-ttl">ℹ️ Información</div>
+      <div style="font-size:.75rem;color:var(--muted);line-height:1.7">
+        <b>Mes:</b> ${cM} ${cY}<br>
+        <b>Total tareas:</b> ${tot}<br>
+        <b>Estado:</b> ${p>=100?"Completado":p>=40?"En proceso":p>=1?"Iniciado":"Sin iniciar"}<br>
+        <b>Junta #${j.no}</b>
+      </div>
+    </div>`;
+  document.getElementById("sbD").classList.add("on");
+  document.getElementById("ov").classList.add("on");
+}
+function openDetId(id){openDet(JMAP[id])}
+
+// ── ALERTAS ──
+function openAlerts(){
+  const all=DY[cY][cM].j;
+  const cri=all.filter(j=>pct(j.a)>0&&pct(j.a)<40);
+  const zer=all.filter(j=>j.a===0);
+  const nr=all.filter(j=>pct(j.a)>=85&&pct(j.a)<100);
+  const sect=(t,items,cls)=>items.length?
+    `<div class="at">${t} (${items.length})</div>`+
+    items.map(j=>`<div class="ai ${cls}" onclick="openDetId(${j.no});closeAll()"><div class="an">${ab(j.n)}</div><div class="ad">${pct(j.a)}% · ${j.p} pendientes</div></div>`).join(""):""
+  ;
+  const html=sect("🔴 Críticas (1–39%)",cri,"ai-r")+
+             sect("⚪ Sin Iniciar",zer,"ai-r")+
+             sect("🏁 Próximas al 100%",nr,"ai-g");
+  document.getElementById("sbAc").innerHTML=html||`<div style="text-align:center;padding:30px;color:var(--muted)">🎉 Sin alertas activas</div>`;
+  document.getElementById("sbA").classList.add("on");
+  document.getElementById("ov").classList.add("on");
+}
+function closeAll(){
+  document.getElementById("sbD").classList.remove("on");
+  document.getElementById("sbA").classList.remove("on");
+  document.getElementById("ov").classList.remove("on");
+}
+
+// ── CONEXIÓN EN VIVO CON GOOGLE SHEETS (Base_Maestra vía Script3.gs doGet) ──
+const LS_CONN_KEY="juntas_dash_live_url";
+const LS_CONN_OFF="juntas_dash_live_off";
+const DEFAULT_LIVE_URL="https://script.google.com/macros/s/AKfycbxEHbXukNWY6diHapBTOLQsQt8aKCMqrNxOaiXad7mXvOXW1PVvKZ2ly8faQiGwm1A/exec";
+function updateConnBtn(mode,label){
+  const b=document.getElementById("connBtn");
+  if(!b)return;
+  const icon=mode==="live"?"🟢":mode==="warn"?"🟠":"🔌";
+  b.innerHTML=icon+' <span>'+label+'</span>';
+}
+function reshapeLiveJson(json){
+  const tareaTotal=(json.tareaNombres||[]).length||17;
+  const newDY={};
+  const nmIndex={}; NM.forEach((n,i)=>nmIndex[n]=i);
+  (json.rows||[]).forEach(row=>{
+    const anio=String(row.anio);
+    const mes=row.mes;
+    if(!newDY[anio])newDY[anio]={};
+    if(!newDY[anio][mes])newDY[anio][mes]={tt:0,tot:0,listo:0,ag:0,j:[]};
+    let idx=nmIndex[row.junta];
+    if(idx===undefined){ idx=NM.length; NM.push(row.junta); nmIndex[row.junta]=idx; }
+    const l=row.completadas||0;
+    const p=(row.enProceso||0)+(row.sinIniciar||0);
+    const na=tareaTotal-(row.totalAplicable||0);
+    const a=row.pctAvance||0;
+    newDY[anio][mes].j.push({no:idx+1,n:row.junta,a:a,l:l,p:p,na:na});
+    newDY[anio][mes].tot+=(row.totalAplicable||0);
+    newDY[anio][mes].listo+=l;
+  });
+  Object.keys(newDY).forEach(anio=>{
+    MO.forEach(mes=>{
+      const e=newDY[anio][mes];
+      if(e){ e.tt=NM.length; e.ag=e.tot>0?e.listo/e.tot:0; e.j.sort((a,b)=>a.no-b.no); }
+      else { newDY[anio][mes]={tt:NM.length,tot:0,listo:0,ag:0,j:be()}; }
+    });
+  });
+  return newDY;
+}
+let jsonpCounter=0;
+function jsonpFetch(url, timeoutMs){
+  return new Promise((resolve,reject)=>{
+    const cbName="__juntasDashCb"+(jsonpCounter++);
+    const script=document.createElement("script");
+    let done=false;
+    const cleanup=()=>{ delete window[cbName]; if(script.parentNode) script.parentNode.removeChild(script); clearTimeout(timer); };
+    window[cbName]=(data)=>{ if(done)return; done=true; cleanup(); resolve(data); };
+    const timer=setTimeout(()=>{ if(done)return; done=true; cleanup(); reject(new Error("Tiempo de espera agotado — revisá que la URL sea la de /exec y que el acceso esté en \"Cualquier usuario\".")); }, timeoutMs||15000);
+    script.onerror=()=>{ if(done)return; done=true; cleanup(); reject(new Error("No se pudo cargar el script (revisá que la URL esté bien copiada).")); };
+    const sep=url.indexOf("?")>=0?"&":"?";
+    script.src=url+sep+"callback="+cbName+"&_="+Date.now();
+    document.head.appendChild(script);
+  });
+}
+async function fetchAndApply(url, silent){
+  const json=await jsonpFetch(url);
+  if(!json||json.ok!==true||!Array.isArray(json.rows)) throw new Error("Formato inesperado del endpoint"+(json&&json.error?(": "+json.error):""));
+  const newDY=reshapeLiveJson(json);
+  Object.keys(DY).forEach(k=>delete DY[k]);
+  Object.assign(DY, newDY);
+  const anios=Object.keys(DY).sort();
+  ysel.innerHTML="";
+  anios.forEach(y=>{const o=document.createElement("option");o.value=y;o.textContent=y;ysel.appendChild(o)});
+  if(!anios.includes(cY)) cY=anios[anios.length-1];
+  ysel.value=cY;
+  const conDatos=MO.filter(m=>DY[cY][m]&&DY[cY][m].j&&DY[cY][m].j.some(j=>j.l>0||j.p>0));
+  if(!conDatos.includes(cM)) cM=conDatos.length?conDatos[conDatos.length-1]:MO[0];
+  buildTabs();
+  render();
+  if(!silent) document.getElementById("connMsg").innerHTML='<span style="color:var(--green)">✅ Conectado — datos actualizados.</span>';
+  updateConnBtn("live","Datos en vivo");
+}
+function openConn(){
+  document.getElementById("connUrl").value=localStorage.getItem(LS_CONN_KEY)||DEFAULT_LIVE_URL||"";
+  document.getElementById("connMsg").textContent="";
+  document.getElementById("sbC").classList.add("on");
+  document.getElementById("ov").classList.add("on");
+}
+async function connectSheet(){
+  const url=document.getElementById("connUrl").value.trim();
+  const msg=document.getElementById("connMsg");
+  if(!url){ msg.innerHTML='<span style="color:var(--red)">Pegá una URL válida.</span>'; return; }
+  msg.innerHTML='<span style="color:var(--muted)">Conectando…</span>';
+  try{
+    await fetchAndApply(url,false);
+    try{localStorage.setItem(LS_CONN_KEY,url); localStorage.removeItem(LS_CONN_OFF);}catch(e){}
+    setTimeout(closeAll,700);
+  }catch(err){
+    msg.innerHTML='<span style="color:var(--red)">❌ '+err.message+'</span>';
+    updateConnBtn("warn","Sin conexión");
+  }
+}
+function disconnectSheet(){
+  try{localStorage.removeItem(LS_CONN_KEY); localStorage.setItem(LS_CONN_OFF,"1");}catch(e){}
+  updateConnBtn("idle","Datos incorporados");
+  document.getElementById("connMsg").innerHTML='<span style="color:var(--muted)">Se quitó la conexión. Usando datos incorporados.</span>';
+}
+async function autoConnectOnStart(){
+  const off=localStorage.getItem(LS_CONN_OFF)==="1";
+  const saved=localStorage.getItem(LS_CONN_KEY)||(!off?DEFAULT_LIVE_URL:null);
+  if(!saved) return;
+  updateConnBtn("warn","Conectando…");
+  try{
+    await fetchAndApply(saved,true);
+    try{localStorage.setItem(LS_CONN_KEY,saved)}catch(e){}
+  }
+  catch(err){ updateConnBtn("warn","Sin conexión"); }
+}
+async function manualRefresh(){
+  const btn=document.getElementById("refreshBtn");
+  const off=localStorage.getItem(LS_CONN_OFF)==="1";
+  const url=localStorage.getItem(LS_CONN_KEY)||(!off?DEFAULT_LIVE_URL:null);
+  if(!url){ alert("No hay una hoja conectada todavía. Usá el botón 🔌 para conectar una."); return; }
+  const orig=btn.innerHTML;
+  btn.innerHTML="⏳ <span>Actualizando…</span>"; btn.disabled=true;
+  try{
+    await fetchAndApply(url,true);
+    btn.innerHTML="✅ <span>Actualizado</span>";
+  }catch(err){
+    updateConnBtn("warn","Sin conexión");
+    alert("No se pudo actualizar:\n"+err.message);
+    btn.innerHTML=orig;
+  }
+  setTimeout(()=>{ btn.disabled=false; if(btn.innerHTML.indexOf("Actualizado")>=0) btn.innerHTML=orig; }, 1500);
+}
+
+// ── FILTROS & BÚSQUEDA ──
+function setF(btn,f){
+  cF=f;document.querySelectorAll(".bf").forEach(b=>b.classList.remove("on"));
+  btn.classList.add("on");render();
+}
+document.getElementById("si").addEventListener("input",e=>{cS=e.target.value;render()});
+
+// ── HEATMAP TOGGLE ──
+function toggleHM(){
+  const h=document.getElementById("hmg");
+  const b=document.getElementById("hmb");
+  const o=h.classList.toggle("on");
+  b.textContent=o?"▲ Ocultar":"▼ Mostrar";
+}
+
+// ── EXPORTAR ──
+function xCSV(){
+  const d=DY[cY][cM];
+  const rows=[["#","Institución","Avance %","Listo","Pendiente","No Aplica","Estado"]];
+  d.j.forEach(j=>{
+    const p=pct(j.a);
+    rows.push([j.no,j.n,p+"%",j.l,j.p,j.na,p>=100?"Completo":p>=40?"En proceso":p>=1?"Iniciado":"Sin iniciar"]);
+  });
+  const csv=rows.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(",")).join("\n");
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8;"}));
+  a.download="Planillas_"+cM+"_"+cY+".csv";a.click();
+}
+function xPNG(){
+  const s=document.createElement("script");
+  s.src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
+  s.onload=()=>{
+    html2canvas(document.getElementById("mc"),{scale:1.5,backgroundColor:document.documentElement.getAttribute("data-theme")==="dark"?"#0F172A":"#F1F5F9"}).then(cv=>{
+      const a=document.createElement("a");a.href=cv.toDataURL("image/png");
+      a.download="Dashboard_"+cM+"_"+cY+".png";a.click();
+    });
+  };
+  document.head.appendChild(s);
+}
+
+// ── INIT ──
+render();
+autoConnectOnStart();
+</script>
+</body>
+</html>
