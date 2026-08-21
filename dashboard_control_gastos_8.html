@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Control de Gastos · Dirección Regional</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-deep:#0B1420;
+    --bg-panel:#131F2E;
+    --bg-raised:#1A2A3D;
+    --border:#24374C;
+    --text-primary:#EAF1F7;
+    --text-muted:#7E93A7;
+    --teal:#22B8A6;
+    --teal-dim:rgba(34,184,166,0.15);
+    --verde:#34D399;
+    --verde-dim:rgba(52,211,153,0.14);
+    --amarillo:#F5B942;
+    --amarillo-dim:rgba(245,185,66,0.14);
+    --rojo:#F0655A;
+    --rojo-dim:rgba(240,101,90,0.14);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg-deep);
+    color:var(--text-primary);
+    font-family:'Inter',sans-serif;
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+  }
+  .wrap{max-width:1180px;margin:0 auto;padding:32px 24px 64px;}
+
+  /* ---- Header ---- */
+  header{padding-bottom:0;}
+  .eyebrow{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    color:var(--teal);
+    margin:0 0 6px;
+  }
+  h1{
+    font-family:'Space Grotesk',sans-serif;
+    font-weight:700;
+    font-size:32px;
+    margin:0;
+    letter-spacing:-.01em;
+  }
+  .subtitle{color:var(--text-muted);font-size:14px;margin:6px 0 0;}
+  .header-row{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:16px;}
+  .meta{text-align:right;font-size:12px;color:var(--text-muted);font-family:'JetBrains Mono',monospace;}
+  .meta strong{color:var(--text-primary);font-weight:500;}
+
+  /* signature wave divider — línea de costa */
+  .coast{width:100%;height:14px;margin:20px 0 28px;}
+
+  /* ---- Filter bar ---- */
+  .filters{
+    display:flex;gap:10px;flex-wrap:wrap;align-items:center;
+    background:var(--bg-panel);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:12px 14px;
+    margin-bottom:20px;
+  }
+  select, input[type="text"]{
+    background:var(--bg-raised);
+    border:1px solid var(--border);
+    color:var(--text-primary);
+    font-family:'Inter',sans-serif;
+    font-size:13px;
+    padding:8px 12px;
+    border-radius:7px;
+    outline:none;
+  }
+  select:focus, input:focus{border-color:var(--teal);}
+  input[type="text"]{flex:1;min-width:180px;}
+  .btn{
+    background:var(--teal-dim);
+    border:1px solid var(--teal);
+    color:var(--teal);
+    font-family:'Inter',sans-serif;
+    font-weight:600;
+    font-size:13px;
+    padding:8px 14px;
+    border-radius:7px;
+    cursor:pointer;
+    display:flex;align-items:center;gap:6px;
+    transition:background .15s;
+  }
+  .btn:hover{background:rgba(34,184,166,0.28);}
+  .btn:active{transform:scale(0.98);}
+
+  /* ---- Summary cards ---- */
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:24px;}
+  .card{
+    background:var(--bg-panel);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:16px 18px;
+    position:relative;
+    overflow:hidden;
+  }
+  .card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;}
+  .card.rojo::before{background:var(--rojo);}
+  .card.amarillo::before{background:var(--amarillo);}
+  .card.verde::before{background:var(--verde);}
+  .card.total::before{background:var(--teal);}
+  .card-label{font-size:12px;color:var(--text-muted);margin:0 0 8px;text-transform:uppercase;letter-spacing:.06em;}
+  .card-value{font-family:'Space Grotesk',sans-serif;font-size:30px;font-weight:700;margin:0;line-height:1;}
+  .card-pct{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text-muted);margin-top:6px;}
+  .card.clickable{cursor:pointer;transition:transform .12s, background .12s;}
+  .card.clickable:hover{background:var(--bg-raised);}
+  .card.clickable:active{transform:scale(0.98);}
+  .card.active{background:var(--bg-raised);box-shadow:inset 0 0 0 1px currentColor;}
+  .card-hint{font-size:10px;color:var(--text-muted);margin-top:8px;text-transform:uppercase;letter-spacing:.05em;}
+
+  /* ---- Vista general: velocímetro + mapa de calor ---- */
+  .overview{
+    display:grid;grid-template-columns:280px 1fr;gap:12px;margin-bottom:24px;
+  }
+  @media (max-width:760px){.overview{grid-template-columns:1fr;}}
+  .panel{
+    background:var(--bg-panel);border:1px solid var(--border);border-radius:10px;
+    padding:18px;
+  }
+  .panel-title{
+    font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);
+    margin:0 0 12px;
+  }
+  .gauge-wrap{display:flex;flex-direction:column;align-items:center;}
+  .gauge-value{font-family:'Space Grotesk',sans-serif;font-size:34px;font-weight:700;margin-top:-46px;}
+  .gauge-caption{font-size:11px;color:var(--text-muted);margin-top:2px;text-align:center;}
+
+  .heatmap-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;}
+  .heat-tile{
+    border-radius:9px;padding:14px 16px;cursor:pointer;
+    border:1px solid var(--border);
+    transition:transform .12s;
+    position:relative;overflow:hidden;
+  }
+  .heat-tile:hover{transform:translateY(-2px);}
+  .heat-tile.active{box-shadow:0 0 0 2px var(--teal);}
+  .heat-tile .ht-name{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:15px;color:#0B1420;}
+  .heat-tile .ht-count{font-size:11px;color:rgba(11,20,32,0.75);margin-top:2px;font-family:'JetBrains Mono',monospace;}
+  .heat-tile .ht-pct{font-family:'Space Grotesk',sans-serif;font-size:22px;font-weight:700;color:#0B1420;margin-top:10px;}
+  .heat-tile .ht-bar{display:flex;height:5px;border-radius:999px;overflow:hidden;margin-top:10px;background:rgba(11,20,32,0.15);}
+  .heat-tile .ht-seg{height:100%;}
+
+  /* ---- Comparativo Juan vs Mildret ---- */
+  .comparativo{
+    display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:24px;
+  }
+  @media (max-width:640px){.comparativo{grid-template-columns:1fr;}}
+  .comp-card{
+    background:var(--bg-panel);border:1px solid var(--border);border-radius:10px;
+    padding:18px;
+  }
+  .comp-header{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
+  .comp-avatar{
+    width:34px;height:34px;border-radius:999px;
+    display:flex;align-items:center;justify-content:center;
+    font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:14px;
+    background:var(--bg-raised);color:var(--teal);border:1px solid var(--border);
+  }
+  .comp-name{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:16px;}
+  .comp-role{font-size:11px;color:var(--text-muted);}
+  .comp-rows{display:flex;flex-direction:column;gap:10px;}
+  .comp-row{display:flex;align-items:center;gap:10px;}
+  .comp-row .comp-dot{width:10px;height:10px;border-radius:999px;flex-shrink:0;}
+  .comp-row .comp-label{font-size:13px;color:var(--text-muted);width:88px;flex-shrink:0;}
+  .comp-row .comp-track{flex:1;height:8px;border-radius:999px;background:var(--bg-raised);overflow:hidden;}
+  .comp-row .comp-fill{display:block;height:100%;border-radius:999px;transition:width .5s ease;}
+  .comp-row .comp-value{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text-primary);width:70px;text-align:right;flex-shrink:0;}
+
+  .timeline-persona{margin-bottom:10px;}
+  .timeline-persona:last-child{margin-bottom:0;}
+  .timeline-persona-label{
+    font-size:11px;font-weight:600;color:var(--text-muted);
+    text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;
+  }
+
+  /* ---- Table ---- */
+  .table-wrap{
+    background:var(--bg-panel);
+    border:1px solid var(--border);
+    border-radius:10px;
+    overflow:hidden;
+  }
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  thead th{
+    text-align:left;
+    padding:12px 16px;
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:.06em;
+    color:var(--text-muted);
+    border-bottom:1px solid var(--border);
+    cursor:pointer;
+    user-select:none;
+    white-space:nowrap;
+  }
+  thead th:hover{color:var(--text-primary);}
+  thead th .arrow{opacity:.5;font-size:10px;margin-left:3px;}
+  tbody tr{border-bottom:1px solid var(--border);cursor:pointer;transition:background .12s;}
+  tbody tr:last-child{border-bottom:none;}
+  tbody tr:hover{background:var(--bg-raised);}
+  tbody td{padding:11px 16px;vertical-align:middle;}
+  td.no{color:var(--text-muted);font-family:'JetBrains Mono',monospace;width:40px;}
+  td.cedula{font-family:'JetBrains Mono',monospace;color:var(--text-muted);font-size:12px;}
+  td.institucion{font-weight:500;}
+  .region-tag{
+    font-size:11px;color:var(--teal);
+    font-family:'JetBrains Mono',monospace;
+  }
+  .badge{
+    display:inline-flex;align-items:center;gap:6px;
+    padding:4px 10px;border-radius:999px;
+    font-size:12px;font-weight:600;
+  }
+  .badge .dot{width:7px;height:7px;border-radius:999px;}
+  .badge.rojo{background:var(--rojo-dim);color:var(--rojo);}
+  .badge.rojo .dot{background:var(--rojo);}
+  .badge.amarillo{background:var(--amarillo-dim);color:var(--amarillo);}
+  .badge.amarillo .dot{background:var(--amarillo);}
+  .badge.verde{background:var(--verde-dim);color:var(--verde);}
+  .badge.verde .dot{background:var(--verde);}
+
+  .timeline-row td{background:var(--bg-deep);padding:14px 16px 18px 56px;}
+  .timeline{display:flex;gap:6px;flex-wrap:wrap;}
+  .tl-item{display:flex;flex-direction:column;align-items:center;gap:5px;width:56px;}
+  .tl-dot{width:14px;height:14px;border-radius:999px;}
+  .tl-dot.rojo{background:var(--rojo);}
+  .tl-dot.amarillo{background:var(--amarillo);}
+  .tl-dot.verde{background:var(--verde);}
+  .tl-label{font-size:10px;color:var(--text-muted);font-family:'JetBrains Mono',monospace;}
+
+  .empty, .error-box{padding:60px 20px;text-align:center;color:var(--text-muted);}
+  .error-box{color:var(--rojo);}
+  .error-box h3{color:var(--text-primary);font-family:'Space Grotesk',sans-serif;margin-bottom:8px;}
+  .config-panel{
+    max-width:520px;margin:20px auto 0;text-align:left;
+    background:var(--bg-raised);border:1px solid var(--border);border-radius:10px;padding:18px;
+  }
+  .config-panel label{font-size:12px;color:var(--text-muted);display:block;margin-bottom:6px;}
+  .config-panel input{width:100%;margin-bottom:10px;}
+  .config-panel p{font-size:12px;color:var(--text-muted);line-height:1.5;}
+
+  .loading{padding:60px 20px;text-align:center;color:var(--text-muted);font-family:'JetBrains Mono',monospace;font-size:13px;}
+
+  @media (max-width:640px){
+    h1{font-size:24px;}
+    .header-row{flex-direction:column;align-items:flex-start;}
+    .meta{text-align:left;}
+    thead th:nth-child(3){display:none;}
+    td.cedula{display:none;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="header-row">
+      <div>
+        <p class="eyebrow">CEIE&amp;A Consultores</p>
+        <h1>Control de Gastos</h1>
+        <p class="subtitle">Dirección Regional Limón &amp; Sula · 57 instituciones</p>
+      </div>
+      <div class="meta">
+        <div>Última actualización</div>
+        <strong id="lastUpdated">—</strong>
+      </div>
+    </div>
+    <svg class="coast" viewBox="0 0 1180 14" preserveAspectRatio="none">
+      <path d="M0,7 C 80,1 160,13 240,7 C 320,1 400,13 480,7 C 560,1 640,13 720,7 C 800,1 880,13 960,7 C 1040,1 1120,13 1180,7"
+            fill="none" stroke="#22B8A6" stroke-width="1.5" opacity="0.55"/>
+    </svg>
+  </header>
+
+  <div class="filters">
+    <select id="filtroRegion"></select>
+    <select id="filtroResponsable"></select>
+    <select id="filtroMes"></select>
+    <input type="text" id="filtroBusqueda" placeholder="Buscar institución o cédula...">
+    <button class="btn" id="btnRefresh">⟳ Actualizar</button>
+  </div>
+
+  <div class="cards" id="cards"></div>
+
+  <div class="overview">
+    <div class="panel">
+      <p class="panel-title">Avance general</p>
+      <div class="gauge-wrap" id="gaugeWrap"></div>
+    </div>
+    <div class="panel">
+      <p class="panel-title">Mapa de calor por región</p>
+      <div class="heatmap-grid" id="heatmapGrid"></div>
+    </div>
+  </div>
+
+  <div class="comparativo" id="comparativoPanel"></div>
+
+  <div class="table-wrap" id="tableWrap">
+    <div class="loading" id="loadingMsg">Cargando datos del Sheet...</div>
+  </div>
+
+</div>
+
+<script>
+/* ============================================================
+   CONFIGURACIÓN
+   Pega aquí la URL del Apps Script Web App (termina en /exec),
+   una vez desplegado el doGet() del Code.gs.
+   ============================================================ */
+let API_URL = 'https://script.google.com/macros/s/AKfycbya2hKQ2dUPq3FhQQFjA52am2qAZ1XO8V2CMTDWAnk8LgQaV_lESoFjTwmTDNvS3r6b/exec';
+
+let dataOriginal = null;   // respuesta cruda de la API
+let institucionesFlat = []; // instituciones aplanadas con región
+let mesesDisponibles = [];
+let sortCol = 'no';
+let sortDir = 1;
+let filaExpandida = null;
+let filtroEstado = null;   // 'Pendiente' | 'Digitado' | 'Codificado' | null
+let regionActivaHeatmap = null;
+
+// Los 3 estados del semáforo, en orden. Si el nombre cambia otra vez,
+// solo hay que tocar esta lista — todo lo demás (colores, filtros,
+// tarjetas) se ajusta solo.
+const ESTADOS = ['Pendiente', 'Digitado', 'Codificado'];
+const ESTADOS_COLOR = { 'Pendiente': 'rojo', 'Digitado': 'amarillo', 'Codificado': 'verde' };
+
+const MESES_ES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+
+function mesActualLabel(){
+  const d = new Date();
+  const yy = String(d.getFullYear()).slice(-2);
+  return MESES_ES[d.getMonth()] + '-' + yy;
+}
+
+async function cargarDatos(url){
+  const tableWrap = document.getElementById('tableWrap');
+  tableWrap.innerHTML = '<div class="loading">Cargando datos del Sheet...</div>';
+  try{
+    const res = await fetch(url);
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    const json = await res.json();
+    if(json.error) throw new Error(json.error);
+    dataOriginal = json;
+    procesarDatos(json);
+    render();
+  }catch(err){
+    mostrarError(err.message);
+  }
+}
+
+function procesarDatos(json){
+  institucionesFlat = [];
+  const mesesSet = new Set();
+
+  (json.hojas || []).forEach(hoja => {
+    // "Control Gastos - Juan" -> "Juan"
+    const responsable = (hoja.hoja || '').replace('Control Gastos - ', '').trim() || hoja.hoja;
+    (hoja.regiones || []).forEach(region => {
+      region.instituciones.forEach(inst => {
+        institucionesFlat.push({
+          no: inst.no,
+          institucion: inst.institucion,
+          cedula: inst.cedula,
+          region: region.nombre,
+          responsable: responsable,
+          meses: inst.meses
+        });
+        Object.keys(inst.meses).forEach(m => mesesSet.add(m));
+      });
+    });
+  });
+  mesesDisponibles = Array.from(mesesSet);
+
+  // poblar selects
+  const selRegion = document.getElementById('filtroRegion');
+  const regiones = Array.from(new Set(institucionesFlat.map(i => i.region)));
+  selRegion.innerHTML = '<option value="">Todas las regiones</option>' +
+    regiones.map(r => `<option value="${r}">${r}</option>`).join('');
+
+  const selResponsable = document.getElementById('filtroResponsable');
+  const responsables = Array.from(new Set(institucionesFlat.map(i => i.responsable)));
+  selResponsable.innerHTML = '<option value="">🚦 Semáforo combinado</option>' +
+    responsables.map(r => `<option value="${r}">Detalle: ${r}</option>`).join('');
+
+  const selMes = document.getElementById('filtroMes');
+  const actual = mesActualLabel();
+  const mesDefault = mesesDisponibles.includes(actual) ? actual : mesesDisponibles[mesesDisponibles.length-1];
+  selMes.innerHTML = mesesDisponibles.map(m => `<option value="${m}" ${m===mesDefault?'selected':''}>${m}</option>`).join('');
+
+  document.getElementById('lastUpdated').textContent = new Date(json.generadoEn).toLocaleString('es-CR');
+}
+
+function claseEstado(estado){
+  return ESTADOS_COLOR[estado] || 'rojo';
+}
+
+/**
+ * Vista combinada: une el trabajo de Juan y Mildret en un solo semáforo
+ * por institución/mes, para responder "¿en quién se está atrasando esto?":
+ *   🟢 Codificado  -> Juan ya lo cerró (completo)
+ *   🟡 Digitado    -> Mildret ya hizo su parte, falta que Juan lo codifique
+ *   🔴 Pendiente   -> ninguno de los dos ha hecho nada
+ * Empareja las instituciones de las dos pestañas por cédula (o nombre si
+ * no hay cédula), asumiendo que ambas pestañas tienen la misma lista.
+ */
+function construirVistaCombinada(){
+  const porClave = {};
+  institucionesFlat.forEach(inst => {
+    // "No." es único dentro de cada bloque de región (se reinicia por región),
+    // a diferencia de la cédula, que en el Sheet real tiene un duplicado
+    // (dos instituciones distintas comparten la misma cédula por error de origen).
+    const clave = inst.no + '|' + inst.region;
+    if(!porClave[clave]){
+      porClave[clave] = { no: inst.no, institucion: inst.institucion, cedula: inst.cedula, region: inst.region, porResponsable: {} };
+    }
+    porClave[clave].porResponsable[inst.responsable] = inst.meses;
+  });
+
+  return Object.values(porClave).map(item => {
+    const meses = {};
+    mesesDisponibles.forEach(m => {
+      const juan = (item.porResponsable['Juan'] || {})[m];
+      const mildret = (item.porResponsable['Mildret'] || {})[m];
+      if(juan === 'Codificado') meses[m] = 'Codificado';
+      else if(mildret === 'Digitado') meses[m] = 'Digitado';
+      else meses[m] = 'Pendiente';
+    });
+    return {
+      no: item.no,
+      institucion: item.institucion,
+      cedula: item.cedula,
+      region: item.region,
+      responsable: null, // vista combinada, no aplica un solo responsable
+      meses: meses,
+      porResponsable: item.porResponsable // se usa para desplegar las 2 líneas de tiempo (Juan/Mildret)
+    };
+  });
+}
+
+function pendienteDeTexto(estado){
+  if(estado === 'Codificado') return 'Completo';
+  if(estado === 'Digitado') return 'Falta Juan';
+  return 'Falta Mildret y Juan';
+}
+
+function enModoCombinado(){
+  return document.getElementById('filtroResponsable').value === '';
+}
+
+/**
+ * "Todos" -> vista combinada (un semáforo por institución).
+ * "Juan"/"Mildret" -> detalle crudo de esa pestaña, como antes.
+ */
+function poolBase(){
+  const responsable = document.getElementById('filtroResponsable').value;
+  const busqueda = document.getElementById('filtroBusqueda').value.trim().toLowerCase();
+  const fuente = responsable ? institucionesFlat.filter(i => i.responsable === responsable) : construirVistaCombinada();
+  return fuente.filter(i => {
+    if(busqueda && !(i.institucion.toLowerCase().includes(busqueda) || String(i.cedula).toLowerCase().includes(busqueda))) return false;
+    return true;
+  });
+}
+
+function datosBase(){
+  const region = document.getElementById('filtroRegion').value;
+  return poolBase().filter(i => !region || i.region === region);
+}
+
+function datosFiltrados(){
+  const mes = document.getElementById('filtroMes').value;
+  return datosBase().filter(i => {
+    if(filtroEstado && (i.meses[mes] || 'Pendiente') !== filtroEstado) return false;
+    return true;
+  });
+}
+
+function render(){
+  renderCards();
+  renderGauge();
+  renderHeatmap();
+  renderComparativo();
+  renderTabla();
+}
+
+/**
+ * Panel "Juan vs Mildret" lado a lado — siempre compara a los dos, sin
+ * importar qué esté elegido en el filtro de Responsable, porque el punto
+ * es justo verlos juntos. Sí respeta región/mes/búsqueda.
+ */
+function renderComparativo(){
+  const mes = document.getElementById('filtroMes').value;
+  const region = document.getElementById('filtroRegion').value;
+  const busqueda = document.getElementById('filtroBusqueda').value.trim().toLowerCase();
+
+  const filtrarPersona = nombre => institucionesFlat.filter(i => {
+    if(i.responsable !== nombre) return false;
+    if(region && i.region !== region) return false;
+    if(busqueda && !(i.institucion.toLowerCase().includes(busqueda) || String(i.cedula).toLowerCase().includes(busqueda))) return false;
+    return true;
+  });
+
+  const contar = (filas, estadoFinal) => {
+    const total = filas.length;
+    const pend = filas.filter(f => (f.meses[mes] || 'Pendiente') === 'Pendiente').length;
+    const listo = filas.filter(f => f.meses[mes] === estadoFinal).length;
+    return { total, pend, listo };
+  };
+
+  const personas = [
+    { nombre: 'Juan', inicial: 'J', estadoFinal: 'Codificado', color: 'var(--verde)' },
+    { nombre: 'Mildret', inicial: 'M', estadoFinal: 'Digitado', color: 'var(--amarillo)' }
+  ];
+
+  const html = personas.map(p => {
+    const filas = filtrarPersona(p.nombre);
+    const { total, pend, listo } = contar(filas, p.estadoFinal);
+    const pctPend = total ? Math.round((pend/total)*100) : 0;
+    const pctListo = total ? Math.round((listo/total)*100) : 0;
+
+    return `<div class="comp-card">
+      <div class="comp-header">
+        <div class="comp-avatar">${p.inicial}</div>
+        <div>
+          <div class="comp-name">${p.nombre}</div>
+          <div class="comp-role">${total} juntas · ${pctListo}% avance (${mes || '—'})</div>
+        </div>
+      </div>
+      <div class="comp-rows">
+        <div class="comp-row">
+          <span class="comp-dot" style="background:var(--rojo)"></span>
+          <span class="comp-label">Pendiente</span>
+          <span class="comp-track"><span class="comp-fill" style="width:${pctPend}%;background:var(--rojo)"></span></span>
+          <span class="comp-value">${pend} juntas (${pctPend}%)</span>
+        </div>
+        <div class="comp-row">
+          <span class="comp-dot" style="background:${p.color}"></span>
+          <span class="comp-label">${p.estadoFinal}</span>
+          <span class="comp-track"><span class="comp-fill" style="width:${pctListo}%;background:${p.color}"></span></span>
+          <span class="comp-value">${listo} juntas (${pctListo}%)</span>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('comparativoPanel').innerHTML = html;
+}
+
+function renderCards(){
+  const mes = document.getElementById('filtroMes').value;
+  const filas = datosBase();
+  const total = filas.length;
+  let pend=0, proc=0, act=0;
+  filas.forEach(f => {
+    const e = f.meses[mes];
+    if(e === 'Pendiente') pend++;
+    else if(e === 'Digitado') proc++;
+    else if(e === 'Codificado') act++;
+  });
+  const pct = n => total ? Math.round((n/total)*100) : 0;
+  const activa = estado => filtroEstado === estado ? 'active' : '';
+
+  document.getElementById('cards').innerHTML = `
+    <div class="card total">
+      <p class="card-label">Total instituciones</p>
+      <p class="card-value">${total}</p>
+      <p class="card-pct">mes: ${mes || '—'}</p>
+    </div>
+    <div class="card rojo clickable ${activa('Pendiente')}" data-estado="Pendiente" style="color:var(--rojo)">
+      <p class="card-label">Pendiente</p>
+      <p class="card-value">${pend}</p>
+      <p class="card-pct">${pct(pend)}% del total</p>
+      <p class="card-hint">${filtroEstado==='Pendiente' ? 'Clic para quitar filtro' : 'Clic para ver juntas'}</p>
+    </div>
+    <div class="card amarillo clickable ${activa('Digitado')}" data-estado="Digitado" style="color:var(--amarillo)">
+      <p class="card-label">Digitado</p>
+      <p class="card-value">${proc}</p>
+      <p class="card-pct">${pct(proc)}% del total</p>
+      <p class="card-hint">${filtroEstado==='Digitado' ? 'Clic para quitar filtro' : 'Clic para ver juntas'}</p>
+    </div>
+    <div class="card verde clickable ${activa('Codificado')}" data-estado="Codificado" style="color:var(--verde)">
+      <p class="card-label">Codificado</p>
+      <p class="card-value">${act}</p>
+      <p class="card-pct">${pct(act)}% del total</p>
+      <p class="card-hint">${filtroEstado==='Codificado' ? 'Clic para quitar filtro' : 'Clic para ver juntas'}</p>
+    </div>
+  `;
+
+  document.getElementById('cards').querySelectorAll('.card.clickable').forEach(card => {
+    card.addEventListener('click', () => {
+      const estado = card.dataset.estado;
+      filtroEstado = filtroEstado === estado ? null : estado;
+      filaExpandida = null;
+      renderCards();
+      renderTabla();
+    });
+  });
+}
+
+/**
+ * Velocímetro: % de instituciones "Codificado" sobre el total filtrado
+ * (respeta región/búsqueda, no el filtro de estado de las tarjetas).
+ */
+function renderGauge(){
+  const mes = document.getElementById('filtroMes').value;
+  const filas = datosBase();
+  const total = filas.length;
+  // Cualquier estado que no sea Pendiente cuenta como avance — así el
+  // velocímetro es justo con Mildret (que llega hasta "Digitado", no
+  // "Codificado") igual que con Juan.
+  const avanzadas = filas.filter(f => f.meses[mes] && f.meses[mes] !== 'Pendiente').length;
+  const pctActualizado = total ? Math.round((avanzadas/total)*100) : 0;
+
+  const cx = 130, cy = 120, r = 96;
+  const startAngle = 180, endAngle = 0; // semicírculo de izquierda a derecha
+  const toXY = (angleDeg, radius) => {
+    const rad = (angleDeg * Math.PI) / 180;
+    return [cx - radius*Math.cos(rad), cy - radius*Math.sin(rad)];
+  };
+  const arcPath = (a1, a2, radius) => {
+    const [x1,y1] = toXY(a1, radius);
+    const [x2,y2] = toXY(a2, radius);
+    return `M ${x1} ${y1} A ${radius} ${radius} 0 0 1 ${x2} ${y2}`;
+  };
+
+  // zonas: 0-40% rojo, 40-75% amarillo, 75-100% verde (mapeadas sobre 180°-0°)
+  const angPend = 180 - 0.40*180;
+  const angProc = 180 - 0.75*180;
+  const needleAngle = 180 - (pctActualizado/100)*180;
+  const [nx, ny] = toXY(needleAngle, r-14);
+
+  document.getElementById('gaugeWrap').innerHTML = `
+    <svg width="260" height="150" viewBox="0 0 260 150">
+      <path d="${arcPath(180, angPend, r)}" stroke="var(--rojo)" stroke-width="16" fill="none" stroke-linecap="round"/>
+      <path d="${arcPath(angPend, angProc, r)}" stroke="var(--amarillo)" stroke-width="16" fill="none"/>
+      <path d="${arcPath(angProc, 0, r)}" stroke="var(--verde)" stroke-width="16" fill="none" stroke-linecap="round"/>
+      <line x1="${cx}" y1="${cy}" x2="${nx}" y2="${ny}" stroke="var(--text-primary)" stroke-width="3" stroke-linecap="round"/>
+      <circle cx="${cx}" cy="${cy}" r="6" fill="var(--text-primary)"/>
+    </svg>
+    <div class="gauge-value">${pctActualizado}%</div>
+    <div class="gauge-caption">Avanzado sobre ${total} instituciones · mes ${mes || '—'}</div>
+  `;
+}
+
+/**
+ * Mapa de calor por región: un tile por región, coloreado según su
+ * avance (score = instituciones no-Pendiente / total, rojo→amarillo→verde).
+ * Cualquier estado que no sea Pendiente cuenta como avance completo —
+ * justo tanto para Juan (Codificado) como para Mildret (Digitado).
+ */
+function renderHeatmap(){
+  const mes = document.getElementById('filtroMes').value;
+
+  // Igual que datosBase(), pero sin aplicar el filtro de región — el mapa
+  // de calor ES el selector de región, así que siempre muestra todas las
+  // regiones disponibles dentro de lo que ya filtraste por responsable/búsqueda.
+  const pool = poolBase();
+
+  const regiones = Array.from(new Set(pool.map(f => f.region)));
+
+  const lerp = (a,b,t) => Math.round(a + (b-a)*t);
+  const colorEscala = score => {
+    // 0 -> rojo (240,101,90) | 0.5 -> amarillo (245,185,66) | 1 -> verde (52,211,153)
+    let c1, c2, t;
+    if(score <= 0.5){ c1=[240,101,90]; c2=[245,185,66]; t=score/0.5; }
+    else { c1=[245,185,66]; c2=[52,211,153]; t=(score-0.5)/0.5; }
+    return `rgb(${lerp(c1[0],c2[0],t)},${lerp(c1[1],c2[1],t)},${lerp(c1[2],c2[2],t)})`;
+  };
+
+  const html = regiones.map(region => {
+    const filas = pool.filter(f => f.region === region);
+    const total = filas.length;
+    let pend=0, proc=0, act=0;
+    filas.forEach(f => {
+      const e = f.meses[mes];
+      if(e === 'Pendiente' || !e) pend++; else if(e === 'Digitado') proc++; else if(e === 'Codificado') act++;
+    });
+    // Avance = cualquier cosa que no sea Pendiente, cuenta completo — no
+    // "Digitado" a mitad de camino. Así el color es justo tanto si la
+    // región es de Juan (llega a Codificado) como de Mildret (llega a Digitado).
+    const avanzadas = total - pend;
+    const score = total ? avanzadas/total : 0;
+    const pctAct = total ? Math.round((avanzadas/total)*100) : 0;
+    const bg = colorEscala(score);
+    const activo = document.getElementById('filtroRegion').value === region ? 'active' : '';
+
+    return `<div class="heat-tile ${activo}" data-region="${region}" style="background:${bg}">
+      <div class="ht-name">${region}</div>
+      <div class="ht-count">${total} instituciones</div>
+      <div class="ht-pct">${pctAct}%</div>
+      <div class="ht-bar">
+        <div class="ht-seg" style="width:${total?pend/total*100:0}%;background:#0B1420;opacity:.35"></div>
+        <div class="ht-seg" style="width:${total?proc/total*100:0}%;background:#0B1420;opacity:.2"></div>
+        <div class="ht-seg" style="width:${total?act/total*100:0}%;background:#0B1420;opacity:.05"></div>
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('heatmapGrid').innerHTML = html || '<p style="color:var(--text-muted);font-size:13px;">Sin datos.</p>';
+
+  document.getElementById('heatmapGrid').querySelectorAll('.heat-tile').forEach(tile => {
+    tile.addEventListener('click', () => {
+      const region = tile.dataset.region;
+      const sel = document.getElementById('filtroRegion');
+      sel.value = sel.value === region ? '' : region;
+      filaExpandida = null;
+      render();
+    });
+  });
+}
+
+function renderTabla(){
+  const mes = document.getElementById('filtroMes').value;
+  const combinado = enModoCombinado();
+  let filas = datosFiltrados();
+
+  filas.sort((a,b) => {
+    let va, vb;
+    if(sortCol === 'estado'){
+      va = a.meses[mes] || ''; vb = b.meses[mes] || '';
+    } else if(sortCol === 'responsable' && combinado){
+      va = pendienteDeTexto(a.meses[mes] || 'Pendiente');
+      vb = pendienteDeTexto(b.meses[mes] || 'Pendiente');
+    } else {
+      va = a[sortCol]; vb = b[sortCol];
+    }
+    if(typeof va === 'string') va = va.toLowerCase();
+    if(typeof vb === 'string') vb = vb.toLowerCase();
+    if(va < vb) return -1*sortDir;
+    if(va > vb) return 1*sortDir;
+    return 0;
+  });
+
+  const tableWrap = document.getElementById('tableWrap');
+  if(filas.length === 0){
+    tableWrap.innerHTML = '<div class="empty">Ninguna institución coincide con el filtro.</div>';
+    return;
+  }
+
+  const arrow = col => sortCol === col ? `<span class="arrow">${sortDir===1?'▲':'▼'}</span>` : '';
+
+  let html = `<table>
+    <thead><tr>
+      <th data-col="no">No.${arrow('no')}</th>
+      <th data-col="institucion">Institución${arrow('institucion')}</th>
+      <th data-col="cedula">Cédula${arrow('cedula')}</th>
+      <th data-col="region">Región${arrow('region')}</th>
+      <th data-col="responsable">${combinado ? 'Pendiente de' : 'Responsable'}${arrow('responsable')}</th>
+      <th data-col="estado">Estado (${mes})${arrow('estado')}</th>
+    </tr></thead><tbody>`;
+
+  filas.forEach((f, idx) => {
+    const estado = f.meses[mes] || 'Pendiente';
+    const cls = claseEstado(estado);
+    const colResponsable = combinado ? pendienteDeTexto(estado) : (f.responsable || '—');
+    html += `<tr class="data-row" data-idx="${idx}">
+      <td class="no">${f.no}</td>
+      <td class="institucion">${f.institucion}</td>
+      <td class="cedula">${f.cedula}</td>
+      <td class="region-tag">${f.region}</td>
+      <td class="region-tag">${colResponsable}</td>
+      <td><span class="badge ${cls}"><span class="dot"></span>${estado}</span></td>
+    </tr>`;
+    if(filaExpandida === idx){
+      const timelineHTML = mesesObj => mesesDisponibles.map(m => {
+        const e = (mesesObj || {})[m] || 'Pendiente';
+        return `<div class="tl-item"><div class="tl-dot ${claseEstado(e)}" title="${m}: ${e}"></div><div class="tl-label">${m.split('-')[0]}</div></div>`;
+      }).join('');
+
+      if(combinado && f.porResponsable){
+        html += `<tr class="timeline-row"><td colspan="6">
+          <div class="timeline-persona">
+            <div class="timeline-persona-label">👤 Mildret</div>
+            <div class="timeline">${timelineHTML(f.porResponsable['Mildret'])}</div>
+          </div>
+          <div class="timeline-persona">
+            <div class="timeline-persona-label">👤 Juan</div>
+            <div class="timeline">${timelineHTML(f.porResponsable['Juan'])}</div>
+          </div>
+        </td></tr>`;
+      } else {
+        html += `<tr class="timeline-row"><td colspan="6"><div class="timeline">${timelineHTML(f.meses)}</div></td></tr>`;
+      }
+    }
+  });
+
+  html += '</tbody></table>';
+  tableWrap.innerHTML = html;
+
+  tableWrap.querySelectorAll('.data-row').forEach(row => {
+    row.addEventListener('click', () => {
+      const idx = Number(row.dataset.idx);
+      filaExpandida = filaExpandida === idx ? null : idx;
+      renderTabla();
+    });
+  });
+
+  tableWrap.querySelectorAll('thead th').forEach(th => {
+    th.addEventListener('click', () => {
+      const col = th.dataset.col;
+      if(sortCol === col) sortDir *= -1; else { sortCol = col; sortDir = 1; }
+      filaExpandida = null;
+      renderTabla();
+    });
+  });
+}
+
+function mostrarError(msg){
+  document.getElementById('cards').innerHTML = '';
+  document.getElementById('tableWrap').innerHTML = `
+    <div class="error-box">
+      <h3>No se pudo cargar el Sheet</h3>
+      <p>${msg}</p>
+      <div class="config-panel">
+        <label>URL del Apps Script Web App (termina en /exec)</label>
+        <input type="text" id="urlManual" placeholder="https://script.google.com/macros/s/.../exec">
+        <button class="btn" id="btnCargarManual">Cargar</button>
+        <p style="margin-top:12px;">Esta URL solo se usa para esta sesión. Para que el dashboard la recuerde
+        siempre, edita la constante <code>API_URL</code> al inicio del archivo HTML.</p>
+      </div>
+    </div>
+  `;
+  document.getElementById('btnCargarManual').addEventListener('click', () => {
+    const val = document.getElementById('urlManual').value.trim();
+    if(val) cargarDatos(val);
+  });
+}
+
+document.getElementById('filtroRegion').addEventListener('change', () => { filaExpandida=null; render(); });
+document.getElementById('filtroResponsable').addEventListener('change', () => { filaExpandida=null; render(); });
+document.getElementById('filtroMes').addEventListener('change', () => { filaExpandida=null; render(); });
+document.getElementById('filtroBusqueda').addEventListener('input', () => { filaExpandida=null; render(); });
+document.getElementById('btnRefresh').addEventListener('click', () => cargarDatos(API_URL));
+
+cargarDatos(API_URL);
+</script>
+</body>
+</html>
